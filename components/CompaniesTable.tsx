@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { formatMarketCap, formatRunway } from '@/lib/utils'
 import { StageBadge } from '@/components/Badge'
 import Sparkline from '@/components/Sparkline'
+import CompanyLogo from '@/components/CompanyLogo'
 
 type SortKey = 'ticker' | 'name' | 'market_cap_m' | 'cash_at_end' | 'runway_months' | 'pipeline_assets'
 type SortDir = 'asc' | 'desc'
@@ -18,6 +19,7 @@ export default function CompaniesTable({
   const [search, setSearch] = useState('')
   const [filterArea, setFilterArea] = useState('')
   const [filterSector, setFilterSector] = useState('')
+  const [hideCfPos, setHideCfPos] = useState(false)
   const [sortKey, setSortKey] = useState<SortKey>('market_cap_m')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
 
@@ -29,6 +31,7 @@ export default function CompaniesTable({
     if (search) r = r.filter((c: any) => c.ticker.toLowerCase().includes(search.toLowerCase()) || c.name.toLowerCase().includes(search.toLowerCase()))
     if (filterArea) r = r.filter((c: any) => c.therapeutic_area === filterArea)
     if (filterSector) r = r.filter((c: any) => c.sector === filterSector)
+    if (hideCfPos) r = r.filter((c: any) => !c.is_cf_positive)
     return [...r].sort((a: any, b: any) => {
       const av = a[sortKey] ?? (sortDir === 'asc' ? Infinity : -Infinity)
       const bv = b[sortKey] ?? (sortDir === 'asc' ? Infinity : -Infinity)
@@ -59,20 +62,25 @@ export default function CompaniesTable({
         <input
           type="text" placeholder="Search ticker or name…"
           value={search} onChange={e => setSearch(e.target.value)}
-          className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-700 w-52"
+          className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-green-700 w-52"
         />
         <select value={filterArea} onChange={e => setFilterArea(e.target.value)}
-          className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-cyan-700">
+          className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-green-700">
           <option value="">All Therapeutic Areas</option>
           {areas.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
         <select value={filterSector} onChange={e => setFilterSector(e.target.value)}
-          className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-cyan-700">
+          className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-green-700">
           <option value="">All Sectors</option>
           {sectors.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
-        {(search || filterArea || filterSector) && (
-          <button onClick={() => { setSearch(''); setFilterArea(''); setFilterSector('') }}
+        <label className="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer select-none">
+          <input type="checkbox" checked={hideCfPos} onChange={e => setHideCfPos(e.target.checked)}
+            className="accent-green-500" />
+          Hide CF+
+        </label>
+        {(search || filterArea || filterSector || hideCfPos) && (
+          <button onClick={() => { setSearch(''); setFilterArea(''); setFilterSector(''); setHideCfPos(false) }}
             className="text-xs text-slate-500 hover:text-slate-300 px-2 py-1.5 border border-slate-700 rounded">
             Clear filters
           </button>
@@ -105,10 +113,13 @@ export default function CompaniesTable({
               return (
                 <tr key={c.ticker} className="hover:bg-slate-800/40 transition-colors">
                   <td className="px-4 py-3">
-                    <Link href={`/companies/${c.ticker}`} className="font-mono font-bold text-cyan-400 hover:text-cyan-300">{c.ticker}</Link>
+                    <Link href={`/companies/${c.ticker}`} className="font-mono font-bold text-green-400 hover:text-green-300">{c.ticker}</Link>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="text-slate-200">{c.name}</div>
+                    <div className="flex items-center gap-2">
+                      <CompanyLogo website={c.website} name={c.name} size={24} />
+                      <div className="text-slate-200">{c.name}</div>
+                    </div>
                     {c.description && <div className="text-xs text-slate-600 line-clamp-1 mt-0.5 max-w-xs">{c.description}</div>}
                   </td>
                   <td className="px-4 py-3 text-slate-400 hidden lg:table-cell">{c.sector || '—'}</td>

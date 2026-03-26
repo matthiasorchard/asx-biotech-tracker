@@ -44,7 +44,7 @@ export function ImpactBadge({ impact }: { impact: string }) {
 export function ConfidenceBadge({ confidence }: { confidence: string }) {
   const map: Record<string, string> = {
     confirmed: 'text-emerald-400',
-    expected: 'text-cyan-400',
+    expected: 'text-green-400',
     speculative: 'text-slate-500',
   }
   return (

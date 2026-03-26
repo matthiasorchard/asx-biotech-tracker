@@ -86,9 +86,9 @@ export function categoryLabel(cat: string): string {
 
 export function categoryColor(cat: string): string {
   const map: Record<string, string> = {
-    quarterly_4c: 'bg-cyan-900 text-cyan-300',
-    half_year_report: 'bg-cyan-900 text-cyan-300',
-    annual_report: 'bg-cyan-900 text-cyan-300',
+    quarterly_4c: 'bg-green-900 text-green-300',
+    half_year_report: 'bg-green-900 text-green-300',
+    annual_report: 'bg-green-900 text-green-300',
     capital_raise: 'bg-violet-900 text-violet-300',
     trial_results: 'bg-emerald-900 text-emerald-300',
     regulatory: 'bg-amber-900 text-amber-300',
@@ -108,7 +108,7 @@ export function impactColor(impact: string): string {
 
 export function confidenceColor(conf: string): string {
   if (conf === 'confirmed') return 'text-emerald-400'
-  if (conf === 'expected') return 'text-cyan-400'
+  if (conf === 'expected') return 'text-green-400'
   return 'text-slate-500'
 }
 

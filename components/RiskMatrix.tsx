@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 const EVENT_COLORS: Record<string, string> = {
-  data_readout:            '#06b6d4',
+  data_readout:            '#22c55e',
   regulatory_decision:     '#f59e0b',
   financing:               '#ef4444',
   commercial_milestone:    '#10b981',
@@ -53,7 +53,7 @@ function CustomTooltip({ active, payload }: any) {
   return (
     <div className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs shadow-xl max-w-56 pointer-events-none">
       <div className="flex items-center gap-2 mb-2">
-        <span className="font-mono font-bold text-cyan-400 text-sm">{d.ticker}</span>
+        <span className="font-mono font-bold text-green-400 text-sm">{d.ticker}</span>
         <span className="text-slate-500">{EVENT_LABELS[d.event_type] ?? d.event_type}</span>
       </div>
       <div className="text-slate-200 mb-2 leading-snug">{d.title}</div>
@@ -63,7 +63,7 @@ function CustomTooltip({ active, payload }: any) {
         {d.cash_at_end && <div>Cash <span className="text-white">${Number(d.cash_at_end).toFixed(1)}M</span></div>}
         <div className="capitalize">{d.impact} impact · {d.confidence}</div>
       </div>
-      <div className="mt-2 text-cyan-500 text-xs">Click to view →</div>
+      <div className="mt-2 text-green-500 text-xs">Click to view →</div>
     </div>
   )
 }
@@ -73,6 +73,7 @@ export default function RiskMatrix({ data }: { data: DataPoint[] }) {
   const [horizon, setHorizon] = useState(9999)
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set())
   const [impactFilter, setImpactFilter] = useState<string>('')
+  const [hideCfPos, setHideCfPos] = useState(false)
 
   const presentTypes = useMemo(() => [...new Set(data.map(d => d.event_type))], [data])
 
@@ -88,8 +89,9 @@ export default function RiskMatrix({ data }: { data: DataPoint[] }) {
     if (d.days_to_catalyst > horizon) return false
     if (selectedTypes.size > 0 && !selectedTypes.has(d.event_type)) return false
     if (impactFilter && d.impact !== impactFilter) return false
+    if (hideCfPos && d.is_cf_positive) return false
     return true
-  }), [data, horizon, selectedTypes, impactFilter])
+  }), [data, horizon, selectedTypes, impactFilter, hideCfPos])
 
   if (data.length === 0) {
     return <div className="flex items-center justify-center h-64 text-slate-600 text-sm">No upcoming catalyst data</div>
@@ -133,8 +135,13 @@ export default function RiskMatrix({ data }: { data: DataPoint[] }) {
           <option value="low">Low only</option>
         </select>
 
-        {(selectedTypes.size > 0 || impactFilter || horizon !== 9999) && (
-          <button onClick={() => { setSelectedTypes(new Set()); setImpactFilter(''); setHorizon(9999) }}
+        <label className="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer select-none">
+          <input type="checkbox" checked={hideCfPos} onChange={e => setHideCfPos(e.target.checked)}
+            className="accent-green-500" />
+          Hide CF+
+        </label>
+        {(selectedTypes.size > 0 || impactFilter || horizon !== 9999 || hideCfPos) && (
+          <button onClick={() => { setSelectedTypes(new Set()); setImpactFilter(''); setHorizon(9999); setHideCfPos(false) }}
             className="text-xs text-slate-500 hover:text-slate-300 px-2 py-1 border border-slate-700 rounded">
             Reset
           </button>
@@ -213,7 +220,7 @@ export default function RiskMatrix({ data }: { data: DataPoint[] }) {
             {[...filtered].sort((a, b) => a.days_to_catalyst - b.days_to_catalyst).map((d, i) => (
               <tr key={i} className="hover:bg-slate-800/30">
                 <td className="py-2 pr-3">
-                  <Link href={`/companies/${d.ticker}`} className="font-mono text-cyan-400 hover:text-cyan-300">{d.ticker}</Link>
+                  <Link href={`/companies/${d.ticker}`} className="font-mono text-green-400 hover:text-green-300">{d.ticker}</Link>
                 </td>
                 <td className="py-2 pr-3 text-slate-300 max-w-48 truncate">{d.title}</td>
                 <td className="py-2 pr-3 text-slate-500 hidden md:table-cell capitalize">{EVENT_LABELS[d.event_type] ?? d.event_type}</td>

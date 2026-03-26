@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"C:/Users/matth/asx-biotech-tracker\" && changes=$(git status --porcelain app/ components/ lib/ *.py 2>/dev/null) && if [ -n \"$changes\" ]; then git add -- app/ components/ lib/ *.py && git commit -m \"checkpoint: $(date '+%Y-%m-%d %H:%M')\"; fi"
+          }
+        ]
+      }
+    ]
+  }
+}

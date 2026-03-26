@@ -32,15 +32,15 @@ export default function AnnouncementsFilter({ announcements }: { announcements: 
         <input
           type="text" placeholder="Search title or ticker…"
           value={search} onChange={e => setSearch(e.target.value)}
-          className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-700 w-52"
+          className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-green-700 w-52"
         />
         <select value={ticker} onChange={e => setTicker(e.target.value)}
-          className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-cyan-700">
+          className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-green-700">
           <option value="">All Tickers</option>
           {tickers.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <select value={category} onChange={e => setCategory(e.target.value)}
-          className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-cyan-700">
+          className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-green-700">
           <option value="">All Categories</option>
           {ALL_CATEGORIES.map(c => <option key={c} value={c}>{categoryLabel(c)}</option>)}
         </select>
@@ -61,7 +61,7 @@ export default function AnnouncementsFilter({ announcements }: { announcements: 
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <Link href={`/companies/${a.ticker}`} className="text-xs font-mono font-bold text-cyan-400 hover:text-cyan-300 shrink-0">{a.ticker}</Link>
+                  <Link href={`/companies/${a.ticker}`} className="text-xs font-mono font-bold text-green-400 hover:text-green-300 shrink-0">{a.ticker}</Link>
                   <CategoryBadge category={a.category} />
                   {a.is_price_sensitive && <span className="text-xs text-amber-400 border border-amber-800 rounded px-1">Price Sensitive</span>}
                 </div>

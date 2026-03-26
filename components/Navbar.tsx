@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import GlobalSearch from '@/components/GlobalSearch'
 
 const links = [
   { href: '/', label: 'Dashboard' },
@@ -9,6 +10,7 @@ const links = [
   { href: '/announcements', label: 'Announcements' },
   { href: '/risk-matrix', label: 'Risk Matrix' },
   { href: '/trials', label: 'Trials' },
+  { href: '/feedback', label: 'Feedback' },
 ]
 
 export default function Navbar() {
@@ -16,7 +18,7 @@ export default function Navbar() {
   return (
     <nav className="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-50">
       <div className="max-w-screen-xl mx-auto px-4 flex items-center h-14 gap-8">
-        <Link href="/" className="flex items-center gap-2 text-cyan-400 font-semibold text-sm tracking-wide shrink-0">
+        <Link href="/" className="flex items-center gap-2 text-green-400 font-semibold text-sm tracking-wide shrink-0">
           <span className="text-lg">⬡</span> ASX Biotech
         </Link>
         <div className="flex items-center gap-1">
@@ -37,7 +39,10 @@ export default function Navbar() {
             )
           })}
         </div>
-        <div className="ml-auto text-xs text-slate-600">27 ASX Biotechs</div>
+        <div className="ml-auto flex items-center gap-4">
+          <GlobalSearch />
+          <span className="text-xs text-slate-600 hidden lg:block">27 ASX Biotechs</span>
+        </div>
       </div>
     </nav>
   )

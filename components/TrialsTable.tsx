@@ -4,7 +4,7 @@ import Link from 'next/link'
 
 const STATUS_STYLE: Record<string, string> = {
   RECRUITING: 'bg-emerald-950 text-emerald-400',
-  NOT_YET_RECRUITING: 'bg-cyan-950 text-cyan-400',
+  NOT_YET_RECRUITING: 'bg-green-950 text-green-400',
   ACTIVE_NOT_RECRUITING: 'bg-blue-950 text-blue-400',
   ENROLLING_BY_INVITATION: 'bg-teal-950 text-teal-400',
   COMPLETED: 'bg-slate-800 text-slate-400',
@@ -76,7 +76,7 @@ export default function TrialsTable({ trials }: { trials: any[] }) {
         <input
           type="text" placeholder="Search title, drug, condition, NCT ID…"
           value={search} onChange={e => setSearch(e.target.value)}
-          className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-700 w-64"
+          className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-green-700 w-64"
         />
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
           className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-300 focus:outline-none">
@@ -123,7 +123,7 @@ export default function TrialsTable({ trials }: { trials: any[] }) {
                   {/* Top row: badges + ticker */}
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <Link href={`/companies/${t.ticker}`}
-                      className="font-mono text-xs font-bold text-cyan-400 hover:text-cyan-300 shrink-0">
+                      className="font-mono text-xs font-bold text-green-400 hover:text-green-300 shrink-0">
                       {t.ticker}
                     </Link>
                     {t.phase && (
@@ -134,14 +134,14 @@ export default function TrialsTable({ trials }: { trials: any[] }) {
                     <span className={`text-xs px-2 py-0.5 rounded ${STATUS_STYLE[t.status] ?? 'bg-slate-800 text-slate-400'}`}>
                       {statusLabel(t.status)}
                     </span>
-                    {t.has_results && <span className="text-xs bg-cyan-950 text-cyan-400 px-2 py-0.5 rounded">Results</span>}
+                    {t.has_results && <span className="text-xs bg-green-950 text-green-400 px-2 py-0.5 rounded">Results</span>}
                   </div>
 
                   {/* Drug names */}
                   {drugs.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-1.5">
                       {drugs.map((d: string, i: number) => (
-                        <span key={i} className="text-xs font-medium text-cyan-300 bg-cyan-950/40 px-2 py-0.5 rounded">{d}</span>
+                        <span key={i} className="text-xs font-medium text-green-300 bg-green-950/40 px-2 py-0.5 rounded">{d}</span>
                       ))}
                     </div>
                   )}
@@ -190,7 +190,7 @@ export default function TrialsTable({ trials }: { trials: any[] }) {
                 <div className="text-xs text-slate-600 shrink-0 text-right space-y-2 min-w-28">
                   <a href={t.ct_url || `https://clinicaltrials.gov/study/${t.nct_id}`}
                     target="_blank" rel="noopener noreferrer"
-                    className="block text-cyan-600 hover:text-cyan-400 font-mono">{t.nct_id} ↗</a>
+                    className="block text-green-600 hover:text-green-400 font-mono">{t.nct_id} ↗</a>
                   {t.start_date && (
                     <div>
                       <div className="text-slate-700">Start</div>

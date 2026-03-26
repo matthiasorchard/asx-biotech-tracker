@@ -32,7 +32,7 @@ export default async function CatalystsPage() {
       <div className="flex flex-wrap gap-2">
         {Object.entries(byType).map(([type, count]) => (
           <div key={type} className="bg-slate-900 border border-slate-800 rounded-full px-3 py-1 text-xs text-slate-300">
-            {typeLabel(type)} <span className="text-cyan-400 font-semibold ml-1">{count}</span>
+            {typeLabel(type)} <span className="text-green-400 font-semibold ml-1">{count}</span>
           </div>
         ))}
       </div>
@@ -64,11 +64,21 @@ export default async function CatalystsPage() {
                     ) : null}
                   </td>
                   <td className="px-4 py-3">
-                    <Link href={`/companies/${c.ticker}`} className="font-mono font-bold text-cyan-400 hover:text-cyan-300">{c.ticker}</Link>
+                    <Link href={`/companies/${c.ticker}`} className="font-mono font-bold text-green-400 hover:text-green-300">{c.ticker}</Link>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="text-slate-200">{c.title}</div>
-                    {c.description && <div className="text-xs text-slate-500 mt-0.5 line-clamp-1">{c.description}</div>}
+                    {c.source_url ? (
+                      <a href={c.source_url} target="_blank" rel="noopener noreferrer"
+                        className="text-slate-200 hover:text-green-300 underline decoration-slate-600 underline-offset-2">
+                        {c.title}
+                      </a>
+                    ) : (
+                      <span className="text-slate-200">{c.title}</span>
+                    )}
+                    {c.description && <div className="text-xs text-slate-500 mt-0.5">{c.description}</div>}
+                    {!c.source_url && (
+                      <div className="text-xs text-slate-700 mt-0.5 italic">Manually curated — source doc will link when announcement is parsed</div>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-slate-400 text-xs hidden md:table-cell">{typeLabel(c.event_type)}</td>
                   <td className="px-4 py-3 hidden md:table-cell"><ConfidenceBadge confidence={c.confidence} /></td>
@@ -101,7 +111,7 @@ export default async function CatalystsPage() {
                   <tr key={c.id} className="hover:bg-slate-800/40 transition-colors">
                     <td className="px-4 py-2.5 text-slate-500 text-xs whitespace-nowrap">{formatDate(c.actual_date || c.expected_date)}</td>
                     <td className="px-4 py-2.5">
-                      <Link href={`/companies/${c.ticker}`} className="font-mono text-sm text-cyan-500 hover:text-cyan-400">{c.ticker}</Link>
+                      <Link href={`/companies/${c.ticker}`} className="font-mono text-sm text-green-500 hover:text-green-400">{c.ticker}</Link>
                     </td>
                     <td className="px-4 py-2.5 text-slate-400">{c.title}</td>
                     <td className="px-4 py-2.5 hidden md:table-cell">
