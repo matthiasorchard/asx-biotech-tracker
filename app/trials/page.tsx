@@ -1,6 +1,4 @@
 import { supabase } from '@/lib/supabase'
-import Link from 'next/link'
-import { formatDate } from '@/lib/utils'
 import TrialsTable from '@/components/TrialsTable'
 
 export const revalidate = 3600

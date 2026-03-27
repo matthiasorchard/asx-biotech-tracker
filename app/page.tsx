@@ -29,6 +29,31 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-5">
+      {/* Explainer — shown to first-time visitors */}
+      <div className="bg-slate-900 border border-slate-800 rounded-lg px-5 py-4">
+        <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base font-semibold text-white mb-1">ASX Biotech Tracker</h2>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              A research tool for tracking ASX-listed biotech and medtech companies. Monitor cash runway, upcoming binary catalysts, clinical trial progress, director transactions, short interest, and government grants — all in one place.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 sm:flex-col sm:gap-y-1.5 sm:shrink-0 text-xs text-slate-500">
+            {[
+              { href: '/companies', label: 'Company profiles & runway' },
+              { href: '/catalysts', label: 'Catalyst calendar' },
+              { href: '/risk-matrix', label: 'Risk matrix' },
+              { href: '/trials', label: 'Clinical trials' },
+              { href: '/announcements', label: 'ASX announcements' },
+            ].map(({ href, label }) => (
+              <Link key={href} href={href} className="flex items-center gap-1.5 hover:text-green-400 transition-colors">
+                <span className="text-green-600">→</span> {label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Stats strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
@@ -120,11 +145,11 @@ export default async function DashboardPage() {
                     tx.tx_type === 'sell' ? 'bg-rose-950 text-rose-400' :
                     'bg-slate-800 text-slate-400'
                   }`}>{tx.tx_type?.replace(/_/g, ' ').toUpperCase()}</span>
-                  <span className="text-slate-400 text-xs truncate">{tx.director_name}</span>
+                  <span className="text-slate-400 text-xs truncate max-w-[120px] sm:max-w-none">{tx.director_name}</span>
                 </div>
-                <div className="flex items-center gap-3 text-xs shrink-0">
+                <div className="flex items-center gap-2 text-xs shrink-0">
                   {tx.value && <span className="text-slate-300">${Number(tx.value).toLocaleString(undefined, {maximumFractionDigits: 0})}</span>}
-                  <span className="text-slate-600">{tx.tx_date?.slice(0, 10)}</span>
+                  <span className="text-slate-600 hidden sm:inline">{tx.tx_date?.slice(0, 10)}</span>
                 </div>
               </div>
             ))}

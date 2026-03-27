@@ -38,6 +38,8 @@ export interface CompanyDashboard extends Company {
   burn_rate: number | null
   filing_url: string | null
   runway_months: number | null
+  adj_runway_months: number | null
+  rdti_pending_m: number | null
   cash_qoq_change: number | null
   is_cf_positive: boolean | null
   pipeline_assets: number

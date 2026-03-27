@@ -9,6 +9,13 @@ import CompanyLogo from '@/components/CompanyLogo'
 type SortKey = 'ticker' | 'name' | 'market_cap_m' | 'cash_at_end' | 'runway_months' | 'pipeline_assets'
 type SortDir = 'asc' | 'desc'
 
+const PILL = (active: boolean) =>
+  `px-2.5 py-1 rounded-full text-xs transition-colors border cursor-pointer select-none ${
+    active
+      ? 'bg-green-900 border-green-700 text-green-300'
+      : 'border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500'
+  }`
+
 export default function CompaniesTable({
   companies,
   priceMap = {},
@@ -16,39 +23,41 @@ export default function CompaniesTable({
   companies: any[]
   priceMap?: Record<string, number[]>
 }) {
-  const [search, setSearch] = useState('')
-  const [filterArea, setFilterArea] = useState('')
+  const [search, setSearch]           = useState('')
+  const [filterArea, setFilterArea]   = useState('')
   const [filterSector, setFilterSector] = useState('')
-  const [hideCfPos, setHideCfPos] = useState(false)
-  const [sortKey, setSortKey] = useState<SortKey>('market_cap_m')
-  const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [hideCfPos, setHideCfPos]     = useState(false)
+  const [sortKey, setSortKey]         = useState<SortKey>('market_cap_m')
+  const [sortDir, setSortDir]         = useState<SortDir>('desc')
 
-  const areas = useMemo(() => [...new Set(companies.map((c: any) => c.therapeutic_area).filter(Boolean))].sort(), [companies])
+  const areas   = useMemo(() => [...new Set(companies.map((c: any) => c.therapeutic_area).filter(Boolean))].sort(), [companies])
   const sectors = useMemo(() => [...new Set(companies.map((c: any) => c.sector).filter(Boolean))].sort(), [companies])
 
   const filtered = useMemo(() => {
     let r = companies
-    if (search) r = r.filter((c: any) => c.ticker.toLowerCase().includes(search.toLowerCase()) || c.name.toLowerCase().includes(search.toLowerCase()))
-    if (filterArea) r = r.filter((c: any) => c.therapeutic_area === filterArea)
+    if (search)       r = r.filter((c: any) => c.ticker.toLowerCase().includes(search.toLowerCase()) || c.name.toLowerCase().includes(search.toLowerCase()))
+    if (filterArea)   r = r.filter((c: any) => c.therapeutic_area === filterArea)
     if (filterSector) r = r.filter((c: any) => c.sector === filterSector)
-    if (hideCfPos) r = r.filter((c: any) => !c.is_cf_positive)
+    if (hideCfPos)    r = r.filter((c: any) => !c.is_cf_positive)
     return [...r].sort((a: any, b: any) => {
       const av = a[sortKey] ?? (sortDir === 'asc' ? Infinity : -Infinity)
       const bv = b[sortKey] ?? (sortDir === 'asc' ? Infinity : -Infinity)
       if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
       return sortDir === 'asc' ? av - bv : bv - av
     })
-  }, [companies, search, filterArea, filterSector, sortKey, sortDir])
+  }, [companies, search, filterArea, filterSector, sortKey, sortDir, hideCfPos])
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortKey(key); setSortDir('desc') }
   }
 
-  function Th({ k, label }: { k: SortKey; label: string }) {
+  const hasFilters = !!(search || filterArea || filterSector || hideCfPos)
+
+  function Th({ k, label, className = '' }: { k: SortKey; label: string; className?: string }) {
     const active = sortKey === k
     return (
-      <th className="text-left px-4 py-2 font-medium cursor-pointer select-none hover:text-slate-300 transition-colors"
+      <th className={`text-left px-4 py-2 font-medium cursor-pointer select-none hover:text-slate-300 transition-colors ${className}`}
         onClick={() => toggleSort(k)}>
         {label} {active ? (sortDir === 'asc' ? '↑' : '↓') : <span className="text-slate-700">↕</span>}
       </th>
@@ -56,51 +65,67 @@ export default function CompaniesTable({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3">
+    <div className="space-y-3">
+      {/* Row 1: Search + toggles */}
+      <div className="flex flex-wrap gap-3 items-center">
         <input
           type="text" placeholder="Search ticker or name…"
           value={search} onChange={e => setSearch(e.target.value)}
-          className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-green-700 w-52"
+          className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-green-700 w-full sm:w-52"
         />
-        <select value={filterArea} onChange={e => setFilterArea(e.target.value)}
-          className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-green-700">
-          <option value="">All Therapeutic Areas</option>
-          {areas.map(a => <option key={a} value={a}>{a}</option>)}
-        </select>
-        <select value={filterSector} onChange={e => setFilterSector(e.target.value)}
-          className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-green-700">
-          <option value="">All Sectors</option>
-          {sectors.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
         <label className="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer select-none">
           <input type="checkbox" checked={hideCfPos} onChange={e => setHideCfPos(e.target.checked)}
             className="accent-green-500" />
           Hide CF+
         </label>
-        {(search || filterArea || filterSector || hideCfPos) && (
+        {hasFilters && (
           <button onClick={() => { setSearch(''); setFilterArea(''); setFilterSector(''); setHideCfPos(false) }}
             className="text-xs text-slate-500 hover:text-slate-300 px-2 py-1.5 border border-slate-700 rounded">
-            Clear filters
+            Clear
           </button>
         )}
-        <span className="ml-auto text-xs text-slate-600 self-center">{filtered.length} companies</span>
+        <span className="ml-auto text-xs text-slate-600">{filtered.length} companies</span>
       </div>
 
-      {/* Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-x-auto">
+      {/* Row 2: Therapeutic area pills */}
+      {areas.length > 1 && (
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-xs text-slate-600 shrink-0 w-10">Area</span>
+          <button onClick={() => setFilterArea('')} className={PILL(!filterArea)}>All</button>
+          {areas.map(a => (
+            <button key={a} onClick={() => setFilterArea(filterArea === a ? '' : a)} className={PILL(filterArea === a)}>
+              {a}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Row 3: Sector pills */}
+      {sectors.length > 1 && (
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-xs text-slate-600 shrink-0 w-10">Sector</span>
+          <button onClick={() => setFilterSector('')} className={PILL(!filterSector)}>All</button>
+          {sectors.map(s => (
+            <button key={s} onClick={() => setFilterSector(filterSector === s ? '' : s)} className={PILL(filterSector === s)}>
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Table — overflow: auto on the container gives its own scroll region so sticky thead works */}
+      <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-auto max-h-[calc(100vh-14rem)]">
         <table className="w-full text-sm">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-slate-900">
             <tr className="text-xs text-slate-500 border-b border-slate-800">
               <Th k="ticker" label="Ticker" />
               <Th k="name" label="Company" />
               <th className="text-left px-4 py-2 font-medium hidden lg:table-cell">Sector</th>
               <th className="text-left px-4 py-2 font-medium hidden md:table-cell">Therapeutic Area</th>
               <th className="text-left px-4 py-2 font-medium hidden lg:table-cell">Lead Stage</th>
-              <Th k="pipeline_assets" label="Assets" />
-              <Th k="market_cap_m" label="Mkt Cap" />
-              <Th k="cash_at_end" label="Cash" />
+              <Th k="pipeline_assets" label="Assets" className="hidden sm:table-cell" />
+              <Th k="market_cap_m" label="Mkt Cap" className="hidden sm:table-cell" />
+              <Th k="cash_at_end" label="Cash" className="hidden sm:table-cell" />
               <Th k="runway_months" label="Runway" />
               <th className="text-left px-4 py-2 font-medium hidden xl:table-cell">90d</th>
             </tr>
@@ -125,13 +150,29 @@ export default function CompaniesTable({
                   <td className="px-4 py-3 text-slate-400 hidden lg:table-cell">{c.sector || '—'}</td>
                   <td className="px-4 py-3 text-slate-400 hidden md:table-cell">{c.therapeutic_area || '—'}</td>
                   <td className="px-4 py-3 hidden lg:table-cell"><StageBadge stage={c.most_advanced_stage} /></td>
-                  <td className="px-4 py-3 text-center text-slate-300">{c.pipeline_assets ?? 0}</td>
-                  <td className="px-4 py-3 text-right text-slate-300">{formatMarketCap(c.market_cap_m)}</td>
-                  <td className="px-4 py-3 text-right text-slate-400">
+                  <td className="px-4 py-3 text-center text-slate-300 hidden sm:table-cell">{c.pipeline_assets ?? 0}</td>
+                  <td className="px-4 py-3 text-right text-slate-300 hidden sm:table-cell">{formatMarketCap(c.market_cap_m)}</td>
+                  <td className="px-4 py-3 text-right text-slate-400 hidden sm:table-cell">
                     {c.cash_at_end ? `$${Number(c.cash_at_end).toFixed(1)}M` : '—'}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    {(() => { const r = formatRunway(c); return <span className={r.className}>{r.text}</span> })()}
+                  <td className="px-4 py-3">
+                    {(() => {
+                      const r = formatRunway(c)
+                      const months = Number(c.runway_months)
+                      const showBar = !c.is_cf_positive && c.cash_at_end !== null && months > 0 && months < 999
+                      const barColor = months < 6 ? 'bg-rose-500' : months < 12 ? 'bg-amber-500' : 'bg-emerald-500'
+                      const barPct = Math.min(100, (months / 18) * 100)
+                      return (
+                        <div className="flex flex-col items-end gap-1.5">
+                          <span className={r.className}>{r.text}</span>
+                          {showBar && (
+                            <div className="w-14 h-1 bg-slate-800 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${barColor}`} style={{ width: `${barPct}%` }} />
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
                   </td>
                   <td className="px-4 py-3 hidden xl:table-cell">
                     {px.length >= 2 ? (

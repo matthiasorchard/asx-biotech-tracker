@@ -1,12 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  'https://zdnhdbkjwlzvzdxjctai.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkbmhkYmtqd2x6dnpkeGpjdGFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMTAwOTQsImV4cCI6MjA4OTc4NjA5NH0._GAcI7-mFZoVAJxQhJwNo1G6e5EXba2HVoWghBCqTuM'
-)
+import { supabase } from '@/lib/supabase'
 
 interface Company {
   ticker: string
@@ -29,7 +24,7 @@ export default function GlobalSearch() {
     supabase
       .from('company')
       .select('ticker,name,therapeutic_area')
-      .eq('status', 'listed')
+      .eq('status', 'active')
       .order('ticker')
       .then(({ data, error }) => {
         if (data) setCompanies(data)

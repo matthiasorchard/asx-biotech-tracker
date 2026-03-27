@@ -1,6 +1,21 @@
 'use client'
 import { useState } from 'react'
 
+interface EnrollmentSnapshot {
+  snapshot_date: string
+  enrollment_actual: number
+  source?: string | null
+}
+
+function calcVelocity(snapshots: EnrollmentSnapshot[]): number | null {
+  if (snapshots.length < 2) return null
+  const first = snapshots[0]
+  const last = snapshots[snapshots.length - 1]
+  const days = (new Date(last.snapshot_date).getTime() - new Date(first.snapshot_date).getTime()) / 86400000
+  if (days < 3) return null
+  return Math.round((last.enrollment_actual - first.enrollment_actual) / days * 7)
+}
+
 const STATUS_STYLE: Record<string, string> = {
   RECRUITING: 'bg-emerald-950 text-emerald-400',
   NOT_YET_RECRUITING: 'bg-green-950 text-green-400',
@@ -35,11 +50,20 @@ function statusLabel(s: string) {
   return s?.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c: string) => c.toUpperCase()) ?? s
 }
 
-function TrialCard({ t, dimmed }: { t: any; dimmed: boolean }) {
+function TrialCard({ t, dimmed, snapshots }: { t: any; dimmed: boolean; snapshots: EnrollmentSnapshot[] }) {
   const drugs = t.interventions?.slice(0, 3) ?? []
   const enrollPct = t.enrollment_target && t.enrollment_actual != null
     ? Math.min(100, Math.round((t.enrollment_actual / t.enrollment_target) * 100))
     : null
+  const velocity = calcVelocity(snapshots)
+  const sparkMax = snapshots.length > 0 ? Math.max(...snapshots.map(s => s.enrollment_actual)) : 0
+
+  const lastSnap = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null
+  const isActiveStatus = ACTIVE_STATUSES.has(t.status)
+  const daysSinceSnap = lastSnap && isActiveStatus
+    ? Math.floor((Date.now() - new Date(lastSnap.snapshot_date).getTime()) / 86400000)
+    : null
+  const isStale = daysSinceSnap !== null && daysSinceSnap > 90
 
   return (
     <div className={`px-4 py-4 ${dimmed ? 'opacity-55' : ''}`}>
@@ -80,7 +104,15 @@ function TrialCard({ t, dimmed }: { t: any; dimmed: boolean }) {
           {t.enrollment_target && (
             <div className="mt-2 space-y-1 max-w-xs">
               <div className="flex justify-between text-xs text-slate-500">
-                <span>Enrollment</span>
+                <span className="flex items-center gap-1.5">
+                  Enrollment
+                  {velocity !== null && velocity > 0 && (
+                    <span className="text-emerald-500 font-medium">+{velocity}/wk</span>
+                  )}
+                  {velocity !== null && velocity === 0 && (
+                    <span className="text-slate-600">no change</span>
+                  )}
+                </span>
                 <span>
                   {t.enrollment_actual != null ? `${t.enrollment_actual} / ` : ''}{t.enrollment_target}
                   {enrollPct != null && <span className="text-slate-400 ml-1">({enrollPct}%)</span>}
@@ -88,8 +120,39 @@ function TrialCard({ t, dimmed }: { t: any; dimmed: boolean }) {
               </div>
               {enrollPct != null && (
                 <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div className="h-full bg-violet-600 rounded-full" style={{ width: `${enrollPct}%` }} />
+                  <div className="h-full bg-violet-600 rounded-full transition-all" style={{ width: `${enrollPct}%` }} />
                 </div>
+              )}
+              {snapshots.length >= 3 && sparkMax > 0 && (
+                <div className="flex items-end gap-px h-5 mt-1">
+                  {snapshots.map((s, i) => {
+                    const h = Math.max(15, Math.round((s.enrollment_actual / sparkMax) * 100))
+                    const isLatest = i === snapshots.length - 1
+                    return (
+                      <div
+                        key={i}
+                        title={`${s.snapshot_date}: ${s.enrollment_actual}${s.source && s.source !== 'manual' ? ` (${s.source})` : ''}`}
+                        className={`flex-1 rounded-sm ${isLatest ? 'bg-violet-400' : 'bg-violet-800'}`}
+                        style={{ height: `${h}%` }}
+                      />
+                    )
+                  })}
+                </div>
+              )}
+              {lastSnap && (
+                <div className="flex items-center gap-2 mt-1 text-xs">
+                  {lastSnap.source && lastSnap.source !== 'manual' ? (
+                    <span className="text-slate-600">via {lastSnap.source}</span>
+                  ) : (
+                    <span className="text-slate-700">manually recorded</span>
+                  )}
+                  {isStale && (
+                    <span className="text-amber-700">· {daysSinceSnap}d since update</span>
+                  )}
+                </div>
+              )}
+              {isActiveStatus && !lastSnap && (
+                <div className="text-xs text-slate-700 mt-1">no manual snapshots — enter via record_enrollment.py</div>
               )}
             </div>
           )}
@@ -105,9 +168,14 @@ function TrialCard({ t, dimmed }: { t: any; dimmed: boolean }) {
         </div>
 
         <div className="text-xs text-slate-600 shrink-0 text-right space-y-1.5 min-w-24">
-          <a href={t.ct_url || `https://clinicaltrials.gov/study/${t.nct_id}`}
+          <a href={t.registry_url || t.ct_url || (t.registry_source === 'anzctr' ? `https://www.anzctr.org.au/Trial/Registration/TrialReview.aspx?id=${t.nct_id}` : `https://clinicaltrials.gov/study/${t.nct_id}`)}
             target="_blank" rel="noopener noreferrer"
             className="block text-green-600 hover:text-green-400 font-mono">{t.nct_id} ↗</a>
+          {t.registry_source === 'anzctr' ? (
+            <span className="text-xs text-teal-600 mt-0.5 block">ANZCTR</span>
+          ) : (
+            <span className="text-xs text-slate-700 mt-0.5 block">CT.gov</span>
+          )}
           {t.start_date && (
             <div>
               <div className="text-slate-700 text-xs">Start</div>
@@ -129,7 +197,7 @@ function TrialCard({ t, dimmed }: { t: any; dimmed: boolean }) {
   )
 }
 
-export default function ClinicalTrialsSection({ trials, companyName }: { trials: any[]; companyName: string }) {
+export default function ClinicalTrialsSection({ trials, companyName, enrollmentSnapshots = {} }: { trials: any[]; companyName: string; enrollmentSnapshots?: Record<string, EnrollmentSnapshot[]> }) {
   const [showInactive, setShowInactive] = useState(false)
 
   const sorted = [...trials].sort((a, b) => {
@@ -159,7 +227,7 @@ export default function ClinicalTrialsSection({ trials, companyName }: { trials:
       {/* Active trials */}
       {active.length > 0 ? (
         <div className="divide-y divide-slate-800">
-          {active.map(t => <TrialCard key={t.id} t={t} dimmed={false} />)}
+          {active.map(t => <TrialCard key={t.id} t={t} dimmed={false} snapshots={enrollmentSnapshots[t.nct_id] ?? []} />)}
         </div>
       ) : (
         <div className="px-4 py-6 text-center text-slate-600 text-sm">No active trials</div>
@@ -177,7 +245,7 @@ export default function ClinicalTrialsSection({ trials, companyName }: { trials:
           </button>
           {showInactive && (
             <div className="divide-y divide-slate-800 border-t border-slate-800">
-              {inactive.map(t => <TrialCard key={t.id} t={t} dimmed={true} />)}
+              {inactive.map(t => <TrialCard key={t.id} t={t} dimmed={true} snapshots={enrollmentSnapshots[t.nct_id] ?? []} />)}
             </div>
           )}
         </>

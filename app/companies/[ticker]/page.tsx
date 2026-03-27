@@ -2,18 +2,25 @@ import { supabase } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { formatDate, formatMarketCap, formatCash, formatRunway } from '@/lib/utils'
-import { StageBadge, CategoryBadge, StatusBadge } from '@/components/Badge'
+import { StageBadge, CategoryBadge, StatusBadge, ConfidenceBadge, ImpactBadge } from '@/components/Badge'
 import CashflowChart from '@/components/CashflowChart'
 import DilutionChart from '@/components/DilutionChart'
 import PriceChart from '@/components/PriceChart'
 import ClinicalTrialsSection from '@/components/ClinicalTrialsSection'
 import CompanyLogo from '@/components/CompanyLogo'
 import TrackRecord from '@/components/TrackRecord'
+import DirectorOptions from '@/components/DirectorOptions'
+import ShortInterest from '@/components/ShortInterest'
+import GrantFunding from '@/components/GrantFunding'
+import RDTaxIncentive from '@/components/RDTaxIncentive'
+import CompetitiveLandscape from '@/components/CompetitiveLandscape'
+import CompanySectionNav from '@/components/CompanySectionNav'
+import PipelineVisualizer from '@/components/PipelineVisualizer'
 
 export const revalidate = 900
 
 async function getCompanyData(ticker: string) {
-  const [companyRes, pipelineRes, cashflowRes, catalystsRes, trialsRes, announcementsRes, raisesRes, buybacksRes, pricesRes, insiderRes] = await Promise.all([
+  const [companyRes, pipelineRes, cashflowRes, catalystsRes, trialsRes, announcementsRes, raisesRes, buybacksRes, pricesRes, insiderRes, snapshotsRes, optionsRes, shortRes, grantsRes, rdtiRes, competitorRes, approvedDrugsRes] = await Promise.all([
     supabase.from('company_dashboard').select('*').eq('ticker', ticker).single(),
     supabase.from('pipeline_asset').select('*').eq('ticker', ticker).order('stage'),
     supabase.from('quarterly_4c').select('*').eq('ticker', ticker).order('quarter_end', { ascending: true }),
@@ -24,7 +31,22 @@ async function getCompanyData(ticker: string) {
     supabase.from('buyback').select('*').eq('ticker', ticker).order('announce_date', { ascending: true }),
     supabase.from('price_snapshot').select('snapshot_date,close_price').eq('ticker', ticker).order('snapshot_date', { ascending: true }).limit(90),
     supabase.from('insider_tx').select('*').eq('ticker', ticker).order('tx_date', { ascending: false }).limit(20),
+    supabase.from('trial_enrollment_snapshot').select('nct_id,snapshot_date,enrollment_actual,source').eq('ticker', ticker).order('snapshot_date', { ascending: true }),
+    supabase.from('director_options').select('*').eq('ticker', ticker).order('expiry_date', { ascending: true }),
+    supabase.from('short_interest').select('report_date,short_pct,short_position_shares,total_shares,source_url').eq('ticker', ticker).order('report_date', { ascending: false }).limit(30),
+    supabase.from('grant_funding').select('*').eq('ticker', ticker).order('awarded_date', { ascending: false }),
+    supabase.from('rd_tax_incentive').select('*').eq('ticker', ticker).order('financial_year', { ascending: false }),
+    supabase.from('competitor_trial').select('*').eq('ticker', ticker).order('phase').order('primary_completion_date', { ascending: true }),
+    supabase.from('approved_drug').select('*').eq('ticker', ticker).order('indication').order('drug_name'),
   ])
+
+  // Group enrollment snapshots by nct_id
+  const enrollmentSnapshots: Record<string, { snapshot_date: string; enrollment_actual: number }[]> = {}
+  for (const s of snapshotsRes.data ?? []) {
+    if (!enrollmentSnapshots[s.nct_id]) enrollmentSnapshots[s.nct_id] = []
+    enrollmentSnapshots[s.nct_id].push({ snapshot_date: s.snapshot_date, enrollment_actual: s.enrollment_actual })
+  }
+
   return {
     company: companyRes.data,
     pipeline: pipelineRes.data ?? [],
@@ -36,16 +58,75 @@ async function getCompanyData(ticker: string) {
     buybacksData: buybacksRes.data ?? [],
     prices: pricesRes.data ?? [],
     insiderTx: insiderRes.data ?? [],
+    enrollmentSnapshots,
+    directorOptions: optionsRes.data ?? [],
+    shortHistory: shortRes.data ?? [],
+    grants: grantsRes.data ?? [],
+    rdti: rdtiRes.data ?? [],
+    competitorTrials: competitorRes.data ?? [],
+    approvedDrugs: approvedDrugsRes.data ?? [],
   }
 }
 
 export default async function CompanyPage({ params }: { params: Promise<{ ticker: string }> }) {
   const { ticker } = await params
-  const { company, pipeline, cashflow, catalysts, trials, announcements, raises, buybacksData, prices, insiderTx } = await getCompanyData(ticker.toUpperCase())
+  const { company, pipeline, cashflow, catalysts, trials, announcements, raises, buybacksData, prices, insiderTx, enrollmentSnapshots, directorOptions, shortHistory, grants, rdti, competitorTrials, approvedDrugs } = await getCompanyData(ticker.toUpperCase())
   if (!company) notFound()
 
   const upcoming = catalysts.filter((c: any) => c.status === 'upcoming')
   const completed = catalysts.filter((c: any) => c.status === 'completed')
+
+  const availableSections = [
+    'pipeline',
+    'cashflow',
+    'raises',
+    ...(insiderTx.length > 0     ? ['director-tx']    : []),
+    ...(directorOptions.length > 0 ? ['options']       : []),
+    'short-interest',
+    'grants',
+    ...(rdti.length > 0                                         ? ['rdti']        : []),
+    ...(competitorTrials.length > 0 || approvedDrugs.length > 0 ? ['landscape']   : []),
+    ...(catalysts.length > 0                                     ? ['catalysts']   : []),
+    'trials',
+    'announcements',
+  ]
+
+  const latest4C = cashflow.length > 0 ? cashflow[cashflow.length - 1] : null
+  const quarterLabel = latest4C?.quarter_end
+    ? new Date(latest4C.quarter_end).toLocaleDateString('en-AU', { month: 'short', year: 'numeric', timeZone: 'UTC' }) + ' 4C'
+    : null
+  const runwayMonths = Number(company.runway_months)
+  const runwayBar = !company.is_cf_positive && company.cash_at_end !== null && runwayMonths > 0 && runwayMonths < 999
+    ? {
+        pct: Math.min(100, (runwayMonths / 18) * 100),
+        color: runwayMonths < 6 ? 'bg-rose-500' : runwayMonths < 12 ? 'bg-amber-500' : 'bg-emerald-500',
+      }
+    : null
+
+  const adjRunwayMonths = Number(company.adj_runway_months)
+  const rdtiPendingM = Number(company.rdti_pending_m ?? 0)
+  const showAdjRunway = !company.is_cf_positive && rdtiPendingM > 0 && adjRunwayMonths > runwayMonths && adjRunwayMonths < 999
+
+  const keyMetrics = [
+    { label: 'Market Cap', value: formatMarketCap(company.market_cap_m) },
+    { label: 'Cash on Hand', value: formatCash(company.cash_at_end), sub: quarterLabel ?? 'Source unknown' },
+    { label: 'Burn Rate', value: company.burn_rate ? `$${Math.abs(Number(company.burn_rate)).toFixed(1)}M/qtr` : '—', sub: quarterLabel },
+    {
+      label: 'Runway',
+      value: (() => { const r = formatRunway(company); return r.text === 'CF+' ? 'CF Positive' : r.text === 'No data' ? 'No data' : r.text.replace('mo', ' months') })(),
+      color: formatRunway(company).className,
+      sub: quarterLabel ? `Based on ${quarterLabel}` : null,
+      bar: runwayBar,
+    },
+    ...(showAdjRunway ? [{
+      label: 'Adj. Runway',
+      value: `${adjRunwayMonths} months`,
+      color: adjRunwayMonths < 6 ? 'text-rose-400' : adjRunwayMonths < 12 ? 'text-amber-400' : 'text-emerald-400',
+      sub: `+$${rdtiPendingM.toFixed(1)}M RDTI`,
+    }] : []),
+    { label: 'Shares Outstanding', value: company.shares_outstanding_m ? (Number(company.shares_outstanding_m) >= 1000 ? `${(Number(company.shares_outstanding_m)/1000).toFixed(1)}B` : `${Number(company.shares_outstanding_m).toFixed(0)}M`) : '—' },
+    { label: 'Pipeline Assets', value: String(pipeline.length) },
+  ]
 
   // Enrich insider tx with nearest catalyst timing
   const enrichedTx = insiderTx.map((tx: any) => {
@@ -104,46 +185,46 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
         </div>
 
         {/* Key metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-5 pt-5 border-t border-slate-800">
-          {(() => {
-            const latest4C = cashflow.length > 0 ? cashflow[cashflow.length - 1] : null
-            const quarterLabel = latest4C?.quarter_end
-              ? new Date(latest4C.quarter_end).toLocaleDateString('en-AU', { month: 'short', year: 'numeric', timeZone: 'UTC' }) + ' 4C'
-              : null
-            return [
-              { label: 'Market Cap', value: formatMarketCap(company.market_cap_m) },
-              { label: 'Cash on Hand', value: formatCash(company.cash_at_end), sub: quarterLabel ?? 'Source unknown' },
-              { label: 'Burn Rate', value: company.burn_rate ? `$${Math.abs(Number(company.burn_rate)).toFixed(1)}M/qtr` : '—', sub: quarterLabel },
-              {
-                label: 'Runway',
-                value: (() => { const r = formatRunway(company); return r.text === 'CF+' ? 'CF Positive' : r.text === 'No data' ? 'No data' : r.text.replace('mo', ' months') })(),
-                color: formatRunway(company).className,
-                sub: quarterLabel ? `Based on ${quarterLabel}` : null,
-              },
-              { label: 'Shares Outstanding', value: company.shares_outstanding_m ? (Number(company.shares_outstanding_m) >= 1000 ? `${(Number(company.shares_outstanding_m)/1000).toFixed(1)}B` : `${Number(company.shares_outstanding_m).toFixed(0)}M`) : '—' },
-              { label: 'Pipeline Assets', value: String(pipeline.length) },
-            ]
-          })().map(m => (
+        <div className="flex items-center justify-between mt-5 pt-5 border-t border-slate-800 mb-3">
+          <span className="text-xs text-slate-600 uppercase tracking-wide font-medium">Key Metrics</span>
+          {quarterLabel
+            ? <span className="text-xs text-slate-600">Cash data from <span className="text-slate-500">{quarterLabel}</span></span>
+            : <span className="text-xs text-slate-700">No cash data on file</span>
+          }
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+          {keyMetrics.map(m => (
             <div key={m.label} className="bg-slate-950/50 rounded-lg p-3">
               <div className="text-xs text-slate-500 mb-1">{m.label}</div>
-              <div className={`text-lg font-semibold ${m.color ?? 'text-white'}`}>{m.value}</div>
-              {m.sub && <div className="text-xs text-slate-600 mt-0.5">{m.sub}</div>}
+              <div className={`text-lg font-semibold ${(m as any).color ?? 'text-white'}`}>{m.value}</div>
+              {(m as any).bar && (
+                <div className="mt-2 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${(m as any).bar.color}`}
+                    style={{ width: `${(m as any).bar.pct}%` }}
+                  />
+                </div>
+              )}
+              {m.sub && <div className="text-xs text-slate-600 mt-1">{m.sub}</div>}
             </div>
           ))}
         </div>
       </div>
 
+      {/* Section nav */}
+      <CompanySectionNav available={availableSections} />
+
       {/* Price chart */}
       <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-medium text-slate-300">90-Day Price</h2>
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+          <h2 className="text-sm font-medium text-slate-300 min-w-0">90-Day Price</h2>
           <span className="text-xs text-slate-600">{company.ticker}.ASX</span>
         </div>
         <PriceChart data={prices} />
       </div>
 
       {/* Pipeline + Cashflow */}
-      <div className="grid md:grid-cols-5 gap-4">
+      <div id="pipeline" className="grid md:grid-cols-5 gap-4 scroll-mt-28">
         {/* Pipeline */}
         <div className="md:col-span-3 bg-slate-900 border border-slate-800 rounded-lg">
           <div className="px-4 py-3 border-b border-slate-800">
@@ -152,7 +233,9 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
           {pipeline.length === 0 ? (
             <div className="px-4 py-8 text-center text-slate-600 text-sm">No pipeline data</div>
           ) : (
-            <div className="divide-y divide-slate-800">
+            <>
+              <PipelineVisualizer pipeline={pipeline} />
+              <div className="divide-y divide-slate-800 border-t border-slate-800">
               {pipeline.map((a: any) => (
                 <div key={a.id} className="px-4 py-3">
                   <div className="flex items-start justify-between gap-3">
@@ -182,11 +265,12 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                 </div>
               ))}
             </div>
+            </>
           )}
         </div>
 
         {/* Cash flow chart */}
-        <div className="md:col-span-2 bg-slate-900 border border-slate-800 rounded-lg">
+        <div id="cashflow" className="md:col-span-2 bg-slate-900 border border-slate-800 rounded-lg scroll-mt-28">
           <div className="px-4 py-3 border-b border-slate-800">
             <h2 className="text-sm font-medium text-slate-300">Quarterly Cash Flow</h2>
           </div>
@@ -216,9 +300,9 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
       </div>
 
       {/* Capital Raises / Dilution */}
-      <div className="bg-slate-900 border border-slate-800 rounded-lg">
-        <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-          <h2 className="text-sm font-medium text-slate-300">Capital Raises & Buybacks</h2>
+      <div id="raises" className="bg-slate-900 border border-slate-800 rounded-lg scroll-mt-28">
+        <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between flex-wrap gap-2">
+          <h2 className="text-sm font-medium text-slate-300 min-w-0">Capital Raises & Buybacks</h2>
           <div className="flex items-center gap-3 text-xs text-slate-600">
             {buybacksData.length > 0 && <span className="text-emerald-600">{buybacksData.length} buyback{buybacksData.length !== 1 ? 's' : ''}</span>}
             {raises.length > 0 && <span>{raises.length} raise{raises.length !== 1 ? 's' : ''}</span>}
@@ -230,20 +314,54 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
         {raises.length > 0 && (
           <div className="px-4 pb-4">
             <div className="divide-y divide-slate-800/60">
-              {[...raises].reverse().slice(0, 5).map((r: any) => (
-                <div key={r.id} className="py-2 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-500">{r.announce_date?.slice(0, 10)}</span>
-                    <span className="capitalize text-slate-400">{r.raise_type?.replace(/_/g, ' ')}</span>
-                    {r.notes && <span className="text-slate-600 hidden md:inline truncate max-w-xs">{r.notes}</span>}
+              {[...raises].reverse().slice(0, 8).map((r: any) => {
+                const isSpp = r.raise_type === 'spp'
+                const hasRetail = isSpp && (r.retail_applications_m || r.scale_back_pct)
+                // Find parent raise for SPPs
+                const parent = isSpp && r.parent_raise_id
+                  ? raises.find((p: any) => p.id === r.parent_raise_id)
+                  : null
+                return (
+                  <div key={r.id} className="py-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-500">{r.announce_date?.slice(0, 10)}</span>
+                        <span className={`capitalize font-medium ${isSpp ? 'text-violet-400' : 'text-slate-400'}`}>
+                          {r.raise_type?.replace(/_/g, ' ')}
+                        </span>
+                        {parent && (
+                          <span className="text-slate-700 hidden sm:inline">
+                            ↳ linked to {parent.announce_date?.slice(0, 10)} placement
+                          </span>
+                        )}
+                        {r.notes && <span className="text-slate-600 hidden md:inline truncate max-w-xs">{r.notes}</span>}
+                      </div>
+                      <div className="flex items-center gap-3 text-right shrink-0">
+                        {r.amount_m && <span className="text-emerald-400">${Number(r.amount_m).toFixed(1)}M</span>}
+                        {r.shares_issued_m && <span className="text-slate-500 hidden sm:inline">{Number(r.shares_issued_m).toFixed(1)}M sh</span>}
+                        {r.price_per_share && <span className="text-slate-600 hidden sm:inline">@ ${Number(r.price_per_share).toFixed(3)}</span>}
+                      </div>
+                    </div>
+                    {hasRetail && (
+                      <div className="mt-1 ml-16 flex flex-wrap gap-x-3 gap-y-0.5 text-slate-600">
+                        {r.retail_applications_m && (
+                          <span>
+                            <span className="text-slate-500">${Number(r.retail_applications_m).toFixed(1)}M</span> applied
+                            {r.amount_m && Number(r.retail_applications_m) > Number(r.amount_m) && (
+                              <span className="text-amber-600 ml-1">
+                                ({(Number(r.retail_applications_m) / Number(r.amount_m)).toFixed(1)}× oversubscribed)
+                              </span>
+                            )}
+                          </span>
+                        )}
+                        {r.scale_back_pct && (
+                          <span className="text-amber-600">{Number(r.scale_back_pct).toFixed(0)}% scaled back</span>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center gap-3 text-right shrink-0">
-                    {r.amount_m && <span className="text-emerald-400">${Number(r.amount_m).toFixed(1)}M</span>}
-                    {r.shares_issued_m && <span className="text-slate-500">{Number(r.shares_issued_m).toFixed(1)}M shares</span>}
-                    {r.price_per_share && <span className="text-slate-600">@ ${Number(r.price_per_share).toFixed(3)}</span>}
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
@@ -259,7 +377,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                     {b.notes && <span className="text-slate-600 hidden md:inline truncate max-w-xs">{b.notes}</span>}
                   </div>
                   <div className="flex items-center gap-3 text-right shrink-0">
-                    {b.shares_cancelled_m && <span className="text-emerald-400">{Number(b.shares_cancelled_m).toFixed(1)}M shares</span>}
+                    {b.shares_cancelled_m && <span className="text-emerald-400 hidden sm:inline">{Number(b.shares_cancelled_m).toFixed(1)}M shares</span>}
                     {b.amount_m && <span className="text-slate-400">${Number(b.amount_m).toFixed(1)}M</span>}
                   </div>
                 </div>
@@ -271,9 +389,9 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
 
       {/* Insider Transactions */}
       {enrichedTx.length > 0 && (
-        <div className="bg-slate-900 border border-slate-800 rounded-lg">
-          <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-            <h2 className="text-sm font-medium text-slate-300">Director Transactions</h2>
+        <div id="director-tx" className="bg-slate-900 border border-slate-800 rounded-lg scroll-mt-28">
+          <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between flex-wrap gap-2">
+            <h2 className="text-sm font-medium text-slate-300 min-w-0">Director Transactions</h2>
             <span className="text-xs text-slate-600">{enrichedTx.length} transaction{enrichedTx.length !== 1 ? 's' : ''}</span>
           </div>
           <div className="divide-y divide-slate-800/60">
@@ -291,8 +409,8 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                     <span className="text-slate-300 truncate">{tx.director_name}</span>
                   </div>
                   <div className="flex items-center gap-3 shrink-0 text-right">
-                    {tx.shares && <span className="text-slate-400">{Number(tx.shares).toLocaleString()} sh</span>}
-                    {tx.price && <span className="text-slate-500">@ ${Number(tx.price).toFixed(3)}</span>}
+                    {tx.shares && <span className="text-slate-400 hidden sm:inline">{Number(tx.shares).toLocaleString()} sh</span>}
+                    {tx.price && <span className="text-slate-500 hidden sm:inline">@ ${Number(tx.price).toFixed(3)}</span>}
                     {tx.value && <span className="text-slate-300">${Number(tx.value).toLocaleString(undefined, {maximumFractionDigits: 0})}</span>}
                     <span className="text-slate-600">{tx.tx_date?.slice(0, 10)}</span>
                   </div>
@@ -318,9 +436,50 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
         </div>
       )}
 
+      {/* Director Options */}
+      <div id="options" className="scroll-mt-28">
+      <DirectorOptions
+        options={directorOptions}
+        currentPrice={prices.length > 0 ? Number(prices[prices.length - 1].close_price) : null}
+      />
+
+      </div>
+
+      {/* Short Interest */}
+      <div id="short-interest" className="scroll-mt-28">
+        <ShortInterest history={shortHistory} />
+      </div>
+
+      {/* Grant Funding */}
+      <div id="grants" className="scroll-mt-28">
+        <GrantFunding grants={grants} />
+      </div>
+
+      {/* R&D Tax Incentive */}
+      {rdti.length > 0 && (
+        <div id="rdti" className="scroll-mt-28">
+          <RDTaxIncentive
+            records={rdti}
+            runwayMonths={runwayMonths < 999 ? runwayMonths : null}
+            adjRunwayMonths={adjRunwayMonths < 999 ? adjRunwayMonths : null}
+          />
+        </div>
+      )}
+
+      {/* Competitive Landscape */}
+      {(competitorTrials.length > 0 || approvedDrugs.length > 0) && (
+        <div id="landscape" className="scroll-mt-28">
+          <CompetitiveLandscape
+            pipeline={pipeline}
+            competitorTrials={competitorTrials}
+            approvedDrugs={approvedDrugs}
+          />
+        </div>
+      )}
+
       {/* Catalysts */}
       {catalysts.length > 0 && (
-        <div className="bg-slate-900 border border-slate-800 rounded-lg">
+        <div id="catalysts" className="bg-slate-900 border border-slate-800 rounded-lg scroll-mt-28">
           <div className="px-4 py-3 border-b border-slate-800">
             <h2 className="text-sm font-medium text-slate-300">Catalysts ({catalysts.length})</h2>
           </div>
@@ -354,13 +513,11 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                       {c.outcome && <div className="text-xs text-slate-500 mt-0.5">{c.outcome}</div>}
                     </td>
                     <td className="px-4 py-2.5 text-slate-400 hidden md:table-cell capitalize">{c.event_type?.replace(/_/g, ' ')}</td>
-                    <td className="px-4 py-2.5 hidden md:table-cell capitalize text-xs">
-                      <span className={c.confidence === 'confirmed' ? 'text-emerald-400' : c.confidence === 'expected' ? 'text-green-400' : 'text-slate-500'}>
-                        {c.confidence}
-                      </span>
+                    <td className="px-4 py-2.5 hidden md:table-cell">
+                      <ConfidenceBadge confidence={c.confidence} />
                     </td>
                     <td className="px-4 py-2.5 hidden md:table-cell">
-                      <span className={c.impact === 'high' ? 'text-amber-400 text-xs' : 'text-slate-500 text-xs'}>{c.impact}</span>
+                      <ImpactBadge impact={c.impact} />
                     </td>
                     <td className="px-4 py-2.5 text-slate-400 text-xs whitespace-nowrap">
                       {formatDate(c.actual_date || c.expected_date)}
@@ -388,12 +545,14 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
       )}
 
       {/* Clinical Trials */}
-      <ClinicalTrialsSection trials={trials} companyName={company.name} />
+      <div id="trials" className="scroll-mt-28">
+        <ClinicalTrialsSection trials={trials} companyName={company.name} enrollmentSnapshots={enrollmentSnapshots} />
+      </div>
 
       {/* Announcements */}
-      <div className="bg-slate-900 border border-slate-800 rounded-lg">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
-          <h2 className="text-sm font-medium text-slate-300">Recent Announcements</h2>
+      <div id="announcements" className="bg-slate-900 border border-slate-800 rounded-lg scroll-mt-28">
+        <div className="flex items-center justify-between flex-wrap gap-2 px-4 py-3 border-b border-slate-800">
+          <h2 className="text-sm font-medium text-slate-300 min-w-0">Recent Announcements</h2>
           <Link href="/announcements" className="text-xs text-green-500 hover:text-green-400">All announcements →</Link>
         </div>
         {announcements.length === 0 ? (

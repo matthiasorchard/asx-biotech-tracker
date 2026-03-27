@@ -23,7 +23,6 @@ export function formatQuarter(dateStr: string): string {
   const d = new Date(dateStr)
   const month = d.getMonth() + 1
   const year = d.getFullYear()
-  const q = Math.ceil(month / 3)
   // ASX financial year starts July, so Q1 = Jul-Sep
   const fyYear = month >= 7 ? year + 1 : year
   const fyQ = month >= 7 ? (month >= 10 ? 2 : 1) : (month >= 4 ? 4 : 3)
@@ -131,11 +130,3 @@ export function formatRunway(c: {
   return { text: `${m}mo`, className: 'text-rose-400' }
 }
 
-/** @deprecated use formatRunway */
-export function runwayColor(months: number | null): string {
-  if (months === null) return 'text-slate-600'
-  if (months >= 999) return 'text-emerald-400'
-  if (months >= 12) return 'text-emerald-400'
-  if (months >= 6) return 'text-amber-400'
-  return 'text-rose-400'
-}
