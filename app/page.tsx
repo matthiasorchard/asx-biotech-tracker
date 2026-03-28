@@ -37,6 +37,9 @@ export default async function DashboardPage() {
             <p className="text-sm text-slate-400 leading-relaxed">
               A research tool for tracking ASX-listed biotech and medtech companies. Monitor cash runway, upcoming binary catalysts, clinical trial progress, director transactions, short interest, and government grants — all in one place.
             </p>
+            <p className="text-xs text-slate-600 mt-2">
+              Early build — data coverage and execution scores improve as companies accumulate history. Not financial advice.
+            </p>
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 sm:flex-col sm:gap-y-1.5 sm:shrink-0 text-xs text-slate-500">
             {[
