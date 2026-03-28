@@ -1,6 +1,42 @@
 'use client'
 import { useState } from 'react'
 
+function InfoTooltip() {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="relative inline-block">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-4 h-4 rounded-full border border-slate-600 text-slate-500 hover:text-slate-300 hover:border-slate-400 text-xs flex items-center justify-center transition-colors"
+        aria-label="How is this score calculated?"
+      >
+        ?
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-6 z-20 w-72 bg-slate-800 border border-slate-700 rounded-lg p-3 shadow-xl text-xs text-slate-300 space-y-2">
+            <p className="font-semibold text-white">How the execution score works</p>
+            <p>Two dimensions are scored independently, then averaged:</p>
+            <div className="space-y-1.5">
+              <div>
+                <span className="text-slate-200 font-medium">Delivery</span>
+                <span className="text-slate-400"> — Did catalysts arrive on time? Tolerance is phase-adjusted: Phase 1 allows ±180 days, Phase 2 ±120 days, Phase 3 ±60 days. High-impact catalysts carry more weight. Requires 3+ completed catalysts.</span>
+              </div>
+              <div>
+                <span className="text-slate-200 font-medium">Capital discipline</span>
+                <span className="text-slate-400"> — How stable is the quarterly burn rate? Large sudden spikes lower the score; sustained reductions improve it.</span>
+              </div>
+            </div>
+            <p className="text-slate-500 border-t border-slate-700 pt-2">Science outcomes (positive/negative readouts) are intentionally excluded — a drug failing is not a management failure.</p>
+            <p className="text-slate-500">Default view shows the rolling 2-year window. Toggle to full history for the complete picture.</p>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 interface Catalyst {
   id: number
   title: string
@@ -317,7 +353,10 @@ export default function TrackRecord({
         <div className="flex items-center gap-3">
           <ScoreBadge score={overallScore} />
           <div>
-            <div className="text-xs text-slate-500">Execution score</div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-500">Execution score</span>
+              <InfoTooltip />
+            </div>
             <div className="text-sm font-semibold text-white">
               {overallScore !== null ? `${overallScore}/100` : 'Insufficient data'}
             </div>
