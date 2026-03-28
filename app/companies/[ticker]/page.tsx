@@ -161,8 +161,13 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
               {company.tier && <span className="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded">Tier {company.tier}</span>}
             </div>
             <h1 className="text-xl font-semibold text-white mb-1">{company.name}</h1>
-            <div className="text-sm text-slate-500">
-              {[company.sector, company.therapeutic_area].filter(Boolean).join(' · ')}
+            <div className="text-sm text-slate-500 flex items-center gap-2 flex-wrap">
+              <span>{[company.sector, company.therapeutic_area].filter(Boolean).join(' · ')}</span>
+              {company.created_at && (
+                <span className="text-slate-700 text-xs">
+                  · Tracked since {new Date(company.created_at).toLocaleDateString('en-AU', { month: 'short', year: 'numeric' })}
+                </span>
+              )}
             </div>
             {company.description && (
               <p className="text-sm text-slate-400 mt-3 max-w-2xl">{company.description}</p>
@@ -537,6 +542,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
         <div className="bg-slate-900 border border-slate-800 rounded-lg">
           <div className="px-4 py-3 border-b border-slate-800">
             <h2 className="text-sm font-medium text-slate-300">Catalyst Track Record</h2>
+            <p className="text-xs text-slate-600 mt-0.5">Score accuracy improves as more catalysts complete over time — data is limited for recently added companies.</p>
           </div>
           <div className="px-4 py-4">
             <TrackRecord catalysts={catalysts} cashflow={cashflow} pipeline={pipeline} />
