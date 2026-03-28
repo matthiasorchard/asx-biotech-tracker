@@ -539,7 +539,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
             <h2 className="text-sm font-medium text-slate-300">Catalyst Track Record</h2>
           </div>
           <div className="px-4 py-4">
-            <TrackRecord catalysts={catalysts} />
+            <TrackRecord catalysts={catalysts} cashflow={cashflow} pipeline={pipeline} />
           </div>
         </div>
       )}
