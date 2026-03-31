@@ -177,7 +177,10 @@ export default async function DashboardPage() {
         {/* Recent announcements */}
         <div className="md:col-span-3 bg-slate-900 border border-slate-800 rounded-lg">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
-            <h2 className="text-sm font-medium text-slate-300">Recent Announcements</h2>
+            <div>
+              <h2 className="text-sm font-medium text-slate-300">Recent Announcements</h2>
+              <p className="text-xs text-slate-600 mt-0.5">Polled 3× daily · up to 30 min display delay</p>
+            </div>
             <Link href="/announcements" className="text-xs text-green-500 hover:text-green-400">View all →</Link>
           </div>
           <div className="divide-y divide-slate-800">

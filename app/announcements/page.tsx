@@ -22,7 +22,7 @@ export default async function AnnouncementsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white">Announcements</h1>
-        <p className="text-slate-500 text-sm mt-1">All ASX announcements across tracked companies</p>
+        <p className="text-slate-500 text-sm mt-1">All ASX announcements across tracked companies · polled 3× daily · up to 15 min display delay</p>
       </div>
       <AnnouncementsFilter announcements={announcements ?? []} companyMap={companyMap} />
     </div>
