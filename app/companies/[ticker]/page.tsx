@@ -16,6 +16,7 @@ import RDTaxIncentive from '@/components/RDTaxIncentive'
 import CompetitiveLandscape from '@/components/CompetitiveLandscape'
 import CompanySectionNav from '@/components/CompanySectionNav'
 import PipelineVisualizer from '@/components/PipelineVisualizer'
+import RunwayGauge from '@/components/RunwayGauge'
 
 export const revalidate = 900
 
@@ -151,7 +152,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
       </div>
 
       {/* Company header */}
-      <div className="bg-slate-900 border border-slate-800 rounded-lg p-5">
+      <div className="glass-card p-5">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-3 mb-2">
@@ -173,19 +174,25 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
               <p className="text-sm text-slate-400 mt-3 max-w-2xl">{company.description}</p>
             )}
           </div>
-          <div className="flex gap-3">
-            {company.website && (
-              <a href={company.website} target="_blank" rel="noopener noreferrer"
-                className="text-xs text-green-500 hover:text-green-400 border border-slate-700 rounded px-3 py-1.5">
-                Website ↗
-              </a>
-            )}
-            {company.asx_url && (
-              <a href={company.asx_url} target="_blank" rel="noopener noreferrer"
-                className="text-xs text-slate-400 hover:text-slate-300 border border-slate-700 rounded px-3 py-1.5">
-                ASX ↗
-              </a>
-            )}
+          <div className="flex flex-col items-end gap-3">
+            <RunwayGauge
+              months={runwayMonths > 0 && runwayMonths < 999 && company.cash_at_end !== null ? runwayMonths : null}
+              isCfPositive={company.is_cf_positive}
+            />
+            <div className="flex gap-3">
+              {company.website && (
+                <a href={company.website} target="_blank" rel="noopener noreferrer"
+                  className="text-xs text-green-500 hover:text-green-400 border border-slate-700 rounded px-3 py-1.5">
+                  Website ↗
+                </a>
+              )}
+              {company.asx_url && (
+                <a href={company.asx_url} target="_blank" rel="noopener noreferrer"
+                  className="text-xs text-slate-400 hover:text-slate-300 border border-slate-700 rounded px-3 py-1.5">
+                  ASX ↗
+                </a>
+              )}
+            </div>
           </div>
         </div>
 

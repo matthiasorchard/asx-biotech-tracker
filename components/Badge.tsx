@@ -41,6 +41,14 @@ export function ImpactBadge({ impact }: { impact: string }) {
   )
 }
 
+export function RaiseRiskBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-crimson-950 border border-crimson-900 text-crimson text-xs font-medium">
+      ⚠ Raise Risk
+    </span>
+  )
+}
+
 export function ConfidenceBadge({ confidence }: { confidence: string }) {
   const map: Record<string, string> = {
     confirmed: 'text-emerald-400',

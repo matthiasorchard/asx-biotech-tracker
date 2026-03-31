@@ -45,6 +45,13 @@ export default function Navbar() {
         {/* Right side */}
         <div className="ml-auto flex items-center gap-3">
           <GlobalSearch />
+          <button
+            onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }))}
+            className="hidden sm:flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-400 border border-slate-800 rounded px-2 py-1 transition-colors"
+            title="Open command palette"
+          >
+            <span>⌘K</span>
+          </button>
           <span className="text-xs text-slate-600 hidden lg:block">27 ASX Biotechs</span>
           {/* Hamburger — mobile only */}
           <button

@@ -1,16 +1,54 @@
 @import "tailwindcss";
 
+/* ── Design tokens ──────────────────────────────────────────────────────── */
 :root {
-  --background: #020817;
+  --background: #111318;      /* deep charcoal with a cool-blue cast */
   --foreground: #e2e8f0;
+
+  /* Crimson — critical / terminal-error state */
+  --crimson:        #dc143c;
+  --crimson-light:  #f04060;
+  --crimson-bg:     #1a0008;
+  --crimson-border: #5a0018;
+
+  /* Glass surface */
+  --glass-bg:       rgba(15, 23, 42, 0.55);
+  --glass-border:   rgba(51, 65, 85, 0.45);
 }
 
+/* Override Tailwind's mono stack with JetBrains Mono */
+@theme {
+  --font-mono: var(--font-jetbrains-mono), 'Cascadia Code', ui-monospace, monospace;
+}
+
+/* ── Base ───────────────────────────────────────────────────────────────── */
 body {
   background: var(--background);
   color: var(--foreground);
+  /* Subtle background depth — gives glass cards something to refract */
+  background-image:
+    radial-gradient(ellipse at 15% 60%, rgba(16, 185, 129, 0.04) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 15%, rgba(59, 130, 246, 0.03) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 100%, rgba(99, 102, 241, 0.03) 0%, transparent 50%);
 }
 
-/* Scrollbar styling */
+/* ── Glass card utility ─────────────────────────────────────────────────── */
+@layer utilities {
+  .glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    border-radius: 0.5rem;
+  }
+
+  /* Crimson utilities — critical / error states */
+  .text-crimson       { color: var(--crimson-light); }
+  .bg-crimson-950     { background-color: var(--crimson-bg); }
+  .border-crimson-900 { border-color: var(--crimson-border); }
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: #0f172a; }
 ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }

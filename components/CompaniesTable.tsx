@@ -2,7 +2,7 @@
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { formatMarketCap, formatRunway } from '@/lib/utils'
-import { StageBadge } from '@/components/Badge'
+import { StageBadge, RaiseRiskBadge } from '@/components/Badge'
 import Sparkline from '@/components/Sparkline'
 import CompanyLogo from '@/components/CompanyLogo'
 
@@ -162,6 +162,7 @@ export default function CompaniesTable({
                       const showBar = !c.is_cf_positive && c.cash_at_end !== null && months > 0 && months < 999
                       const barColor = months < 6 ? 'bg-rose-500' : months < 12 ? 'bg-amber-500' : 'bg-emerald-500'
                       const barPct = Math.min(100, (months / 18) * 100)
+                      const isRaiseRisk = showBar && months < 6
                       return (
                         <div className="flex flex-col items-end gap-1.5">
                           <span className={r.className}>{r.text}</span>
@@ -170,6 +171,7 @@ export default function CompaniesTable({
                               <div className={`h-full rounded-full ${barColor}`} style={{ width: `${barPct}%` }} />
                             </div>
                           )}
+                          {isRaiseRisk && <RaiseRiskBadge />}
                         </div>
                       )
                     })()}

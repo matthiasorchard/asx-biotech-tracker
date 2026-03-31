@@ -10,7 +10,9 @@ async function getDashboardData() {
     supabase.from('company_dashboard').select('ticker,name,market_cap_m,cash_at_end,runway_months,is_cf_positive,most_advanced_stage,pipeline_assets').order('market_cap_m', { ascending: false }),
     supabase.from('announcement').select('id,ticker,title,category,release_date,asx_url,is_price_sensitive').order('release_date', { ascending: false }).limit(15),
     supabase.from('catalyst').select('id,ticker,title,event_type,expected_date,impact,confidence').eq('status', 'upcoming').order('expected_date', { ascending: true }).limit(8),
-    supabase.from('insider_tx').select('*').order('tx_date', { ascending: false }).limit(6),
+    supabase.from('insider_tx').select('*')
+      .gte('tx_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10))
+      .order('tx_date', { ascending: false }),
   ])
   return {
     companies: companiesRes.data ?? [],
@@ -26,6 +28,18 @@ export default async function DashboardPage() {
   const totalMarketCap = companies.reduce((s: number, c: any) => s + (Number(c.market_cap_m) || 0), 0)
   const lowRunway = companies.filter((c: any) => c.cash_at_end !== null && !c.is_cf_positive && Number(c.runway_months) < 6).length
   const cfPositive = companies.filter((c: any) => c.is_cf_positive).length
+
+  const nameMap: Record<string, string> = Object.fromEntries(companies.map((c: any) => [c.ticker, c.name]))
+
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const sevenDaysAgo    = new Date(Date.now() -  7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const insiderAlerts = insiderTx.filter((tx: any) => {
+    if (!tx.value || tx.tx_date < fourteenDaysAgo) return false
+    const v = Number(tx.value)
+    if (tx.tx_type === 'buy')  return v >= 50_000
+    if (tx.tx_type === 'sell') return v >= 100_000
+    return false
+  })
 
   return (
     <div className="space-y-5">
@@ -65,7 +79,7 @@ export default async function DashboardPage() {
           { label: 'CF Positive', value: String(cfPositive), highlight: true },
           { label: 'Upcoming Catalysts', value: String(catalysts.length) },
         ].map((s: any) => (
-          <div key={s.label} className="bg-slate-900 border border-slate-800 rounded-lg px-4 py-3">
+          <div key={s.label} className="glass-card px-4 py-3">
             <div className="text-xs text-slate-500 mb-0.5">{s.label}</div>
             <div className={`text-xl font-bold ${s.highlight ? 'text-emerald-400' : 'text-white'}`}>{s.value}</div>
           </div>
@@ -73,9 +87,64 @@ export default async function DashboardPage() {
       </div>
 
       {lowRunway > 0 && (
-        <div className="bg-rose-950/40 border border-rose-900 rounded-lg px-4 py-2.5 text-sm text-rose-300 flex items-center gap-2">
+        <div className="bg-crimson-950 border border-crimson-900 rounded-lg px-4 py-2.5 text-sm text-crimson flex items-center gap-2">
           <span>⚠</span>
           <span><strong>{lowRunway} {lowRunway === 1 ? 'company' : 'companies'}</strong> under 6 months cash runway — <Link href="/risk-matrix" className="underline hover:text-rose-200">view risk matrix</Link></span>
+        </div>
+      )}
+
+      {/* Insider Trade Alerts */}
+      {insiderAlerts.length > 0 && (
+        <div className="glass-card">
+          <div className="px-4 py-3 border-b border-[--glass-border] flex items-center gap-2">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+            <h2 className="text-sm font-medium text-slate-300">Notable Insider Activity</h2>
+            <span className="text-xs text-slate-600 ml-auto">last 14 days · buys ≥$50k · sells ≥$100k</span>
+          </div>
+          <div className="divide-y divide-slate-800">
+            {insiderAlerts.map((tx: any) => {
+              const isBuy    = tx.tx_type === 'buy'
+              const isRecent = tx.tx_date >= sevenDaysAgo
+              return (
+                <div key={tx.id} className={`px-4 py-3 hover:bg-slate-800/40 transition-colors border-l-2 ${isBuy ? 'border-l-emerald-700' : 'border-l-rose-900'}`}>
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Link href={`/companies/${tx.ticker}`}
+                        className="font-mono text-xs font-bold text-green-400 hover:text-green-300 shrink-0">
+                        {tx.ticker}
+                      </Link>
+                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded shrink-0 ${
+                        isBuy ? 'bg-emerald-950 text-emerald-400' : 'bg-rose-950 text-rose-400'
+                      }`}>
+                        {tx.tx_type.toUpperCase()}
+                      </span>
+                      <div className="min-w-0">
+                        <span className="text-sm text-slate-200 truncate">{tx.director_name}</span>
+                        {nameMap[tx.ticker] && (
+                          <span className="text-xs text-slate-600 ml-2">{nameMap[tx.ticker]}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs shrink-0">
+                      {tx.shares && (
+                        <span className="text-slate-500 hidden sm:inline">
+                          {Number(tx.shares).toLocaleString()} sh
+                          {tx.price ? ` @ $${Number(tx.price).toFixed(3)}` : ''}
+                        </span>
+                      )}
+                      <span className={`font-semibold ${isBuy ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        ${Number(tx.value).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      </span>
+                      <span className="text-slate-600">{tx.tx_date?.slice(0, 10)}</span>
+                      {isRecent && (
+                        <span className="text-amber-400 font-medium">⚡</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 
