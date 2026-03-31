@@ -1,0 +1,79 @@
+# Render cron job definitions for ASX Biotech Tracker polling scripts.
+# All times are UTC. AEST = UTC+10 (UTC+11 during AEDT/summer).
+#
+# To deploy:
+#   1. Push this repo to GitHub
+#   2. Connect repo to Render → New → Cron Job (or use Blueprint)
+#   3. Set env vars: SUPABASE_URL, SUPABASE_KEY (in Render dashboard)
+
+services:
+
+  # ── Poll ASX announcements ────────────────────────────────────────────────
+  # Runs 3x per day on weekdays during ASX hours (10am, 1pm, 3:30pm AEST)
+  - type: cron
+    name: poll-announcements
+    runtime: python
+    schedule: "0 0,3,5 * * 1-5"   # midnight, 3am, 5am UTC = 10am, 1pm, 3pm AEST
+    buildCommand: pip install -r jobs/requirements.txt
+    startCommand: python jobs/poll_announcements.py
+    envVars:
+      - key: SUPABASE_URL
+        sync: false   # set manually in Render dashboard
+      - key: SUPABASE_KEY
+        sync: false
+
+  # ── Fetch daily prices ────────────────────────────────────────────────────
+  # Runs after ASX market close (4pm AEST = 6am UTC) on weekdays
+  - type: cron
+    name: fetch-prices
+    runtime: python
+    schedule: "0 6 * * 1-5"
+    buildCommand: pip install -r jobs/requirements.txt
+    startCommand: python jobs/fetch_prices.py
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+
+  # ── Fetch ClinicalTrials.gov data ─────────────────────────────────────────
+  # Weekly on Monday morning AEST
+  - type: cron
+    name: fetch-trials
+    runtime: python
+    schedule: "0 1 * * 1"
+    buildCommand: pip install -r jobs/requirements.txt
+    startCommand: python jobs/fetch_trials.py
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+
+  # ── Fetch competitor trials + FDA approvals ───────────────────────────────
+  # Weekly on Monday (after fetch-trials)
+  - type: cron
+    name: fetch-competitors
+    runtime: python
+    schedule: "0 2 * * 1"
+    buildCommand: pip install -r jobs/requirements.txt
+    startCommand: python jobs/fetch_competitors.py
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+
+  # ── Fetch ASIC short interest data ───────────────────────────────────────
+  # Weekly on Thursday (T+4 lag — Thursday catches Mon-Tue reports)
+  - type: cron
+    name: fetch-short-interest
+    runtime: python
+    schedule: "0 1 * * 4"
+    buildCommand: pip install -r jobs/requirements.txt
+    startCommand: python jobs/fetch_short_interest.py
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
