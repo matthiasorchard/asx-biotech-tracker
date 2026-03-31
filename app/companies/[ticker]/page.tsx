@@ -16,7 +16,6 @@ import RDTaxIncentive from '@/components/RDTaxIncentive'
 import CompetitiveLandscape from '@/components/CompetitiveLandscape'
 import CompanySectionNav from '@/components/CompanySectionNav'
 import PipelineVisualizer from '@/components/PipelineVisualizer'
-import RunwayGauge from '@/components/RunwayGauge'
 
 export const revalidate = 900
 
@@ -175,10 +174,6 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
             )}
           </div>
           <div className="flex flex-col items-end gap-3">
-            <RunwayGauge
-              months={runwayMonths > 0 && runwayMonths < 999 && company.cash_at_end !== null ? runwayMonths : null}
-              isCfPositive={company.is_cf_positive}
-            />
             <div className="flex gap-3">
               {company.website && (
                 <a href={company.website} target="_blank" rel="noopener noreferrer"
