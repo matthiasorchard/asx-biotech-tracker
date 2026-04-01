@@ -20,7 +20,7 @@ import PipelineVisualizer from '@/components/PipelineVisualizer'
 export const revalidate = 900
 
 async function getCompanyData(ticker: string) {
-  const [companyRes, pipelineRes, cashflowRes, catalystsRes, trialsRes, announcementsRes, raisesRes, buybacksRes, pricesRes, insiderRes, snapshotsRes, optionsRes, shortRes, grantsRes, rdtiRes, competitorRes, approvedDrugsRes, substantialRes, hcRes, dateChangesRes] = await Promise.all([
+  const [companyRes, pipelineRes, cashflowRes, catalystsRes, trialsRes, announcementsRes, raisesRes, buybacksRes, pricesRes, insiderRes, snapshotsRes, optionsRes, shortRes, grantsRes, rdtiRes, competitorRes, approvedDrugsRes, substantialRes, hcRes, dateChangesRes, publicationsRes] = await Promise.all([
     supabase.from('company_dashboard').select('*').eq('ticker', ticker).single(),
     supabase.from('pipeline_asset').select('*').eq('ticker', ticker).order('stage'),
     supabase.from('quarterly_4c').select('*').eq('ticker', ticker).order('quarter_end', { ascending: true }),
@@ -41,6 +41,7 @@ async function getCompanyData(ticker: string) {
     supabase.from('substantial_holder').select('*').eq('ticker', ticker).order('announce_date', { ascending: false }).limit(20),
     supabase.from('hotcopper_snapshot').select('*').eq('ticker', ticker).order('snapshot_date', { ascending: false }).limit(7),
     supabase.from('trial_date_change').select('*').eq('ticker', ticker).order('detected_date', { ascending: false }).limit(30),
+    supabase.from('publication').select('*').eq('ticker', ticker).order('pub_date', { ascending: false }).limit(15),
   ])
 
   // Group enrollment snapshots by nct_id
@@ -71,12 +72,13 @@ async function getCompanyData(ticker: string) {
     substantialHolders: substantialRes.data ?? [],
     hcSnapshots: hcRes.data ?? [],
     dateChanges: dateChangesRes.data ?? [],
+    publications: publicationsRes.data ?? [],
   }
 }
 
 export default async function CompanyPage({ params }: { params: Promise<{ ticker: string }> }) {
   const { ticker } = await params
-  const { company, pipeline, cashflow, catalysts, trials, announcements, raises, buybacksData, prices, insiderTx, enrollmentSnapshots, directorOptions, shortHistory, grants, rdti, competitorTrials, approvedDrugs, substantialHolders, hcSnapshots, dateChanges } = await getCompanyData(ticker.toUpperCase())
+  const { company, pipeline, cashflow, catalysts, trials, announcements, raises, buybacksData, prices, insiderTx, enrollmentSnapshots, directorOptions, shortHistory, grants, rdti, competitorTrials, approvedDrugs, substantialHolders, hcSnapshots, dateChanges, publications } = await getCompanyData(ticker.toUpperCase())
   if (!company) notFound()
 
   const upcoming = catalysts.filter((c: any) => c.status === 'upcoming')
@@ -92,6 +94,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
     'short-interest',
     'grants',
     ...(rdti.length > 0                                         ? ['rdti']        : []),
+    ...(publications.length > 0                                  ? ['publications'] : []),
     ...(competitorTrials.length > 0 || approvedDrugs.length > 0 ? ['landscape']   : []),
     ...(catalysts.length > 0                                     ? ['catalysts']   : []),
     'trials',
@@ -577,6 +580,51 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
             competitorTrials={competitorTrials}
             approvedDrugs={approvedDrugs}
           />
+        </div>
+      )}
+
+      {/* Publications */}
+      {publications.length > 0 && (
+        <div id="publications" className="bg-slate-900 border border-slate-800 rounded-lg scroll-mt-28">
+          <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h2 className="text-sm font-medium text-slate-300">Clinical Publications</h2>
+              <p className="text-xs text-slate-600 mt-0.5">Peer-reviewed papers & conference abstracts via PubMed</p>
+            </div>
+            <span className="text-xs text-slate-600">{publications.length} paper{publications.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="divide-y divide-slate-800/60">
+            {publications.map((p: any) => {
+              const confColor = p.conference === 'ASCO' ? 'bg-sky-950 text-sky-400' :
+                                p.conference === 'ASH'  ? 'bg-rose-950 text-rose-400' :
+                                p.conference === 'ESMO' ? 'bg-violet-950 text-violet-400' :
+                                p.conference === 'AACR' ? 'bg-orange-950 text-orange-400' :
+                                null
+              return (
+                <div key={p.id} className="px-4 py-3 text-xs">
+                  <div className="flex items-start gap-2 mb-1">
+                    {confColor && (
+                      <span className={`shrink-0 px-1.5 py-0.5 rounded font-medium text-xs ${confColor}`}>
+                        {p.conference}
+                      </span>
+                    )}
+                    <a href={p.abstract_url} target="_blank" rel="noopener noreferrer"
+                      className="text-slate-200 hover:text-green-300 leading-snug">
+                      {p.title}
+                    </a>
+                  </div>
+                  <div className="flex items-center gap-3 text-slate-600 mt-1">
+                    <span>{p.journal}</span>
+                    {p.pub_date && <span>{p.pub_date.slice(0, 7)}</span>}
+                    {p.drug_name && <span className="text-slate-700">· {p.drug_name}</span>}
+                    {p.pub_types && p.pub_types.length > 0 && (
+                      <span className="text-slate-700 hidden sm:inline">{p.pub_types[0]}</span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 

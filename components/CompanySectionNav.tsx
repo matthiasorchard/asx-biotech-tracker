@@ -11,6 +11,7 @@ const ALL_SECTIONS = [
   { id: 'short-interest', label: 'Short Interest' },
   { id: 'grants',         label: 'Grants' },
   { id: 'rdti',           label: 'R&D Tax' },
+  { id: 'publications',   label: 'Publications' },
   { id: 'landscape',      label: 'Competitors' },
   { id: 'catalysts',      label: 'Catalysts' },
   { id: 'trials',         label: 'Trials' },

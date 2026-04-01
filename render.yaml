@@ -78,6 +78,20 @@ services:
       - key: SUPABASE_KEY
         sync: false
 
+  # ── Fetch PubMed publications ─────────────────────────────────────────────
+  # Weekly on Tuesday — searches drug names + company affiliation for new papers
+  - type: cron
+    name: fetch-publications
+    runtime: python
+    schedule: "0 1 * * 2"   # 1am UTC Tuesday = 11am AEST
+    buildCommand: pip install -r jobs/requirements.txt
+    startCommand: python jobs/fetch_publications.py --days 30
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+
   # ── Fetch HotCopper forum activity ───────────────────────────────────────
   # Daily on weekdays — captures post counts and latest thread titles
   - type: cron
