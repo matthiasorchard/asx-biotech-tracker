@@ -14,7 +14,7 @@ const links = [
   { href: '/feedback', label: 'Feedback' },
 ]
 
-export default function Navbar() {
+export default function Navbar({ authSlot }: { authSlot?: React.ReactNode }) {
   const path = usePathname()
   const [open, setOpen] = useState(false)
 
@@ -53,6 +53,7 @@ export default function Navbar() {
             <span>⌘K</span>
           </button>
           <span className="text-xs text-slate-600 hidden lg:block">27 ASX Biotechs</span>
+          {authSlot}
           {/* Hamburger — mobile only */}
           <button
             className="md:hidden p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"

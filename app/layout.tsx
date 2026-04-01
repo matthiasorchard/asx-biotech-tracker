@@ -5,6 +5,7 @@ import Navbar from '@/components/Navbar'
 import AlphaBanner from '@/components/AlphaBanner'
 import CommandPalette from '@/components/CommandPalette'
 import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration'
+import AuthButton from '@/components/AuthButton'
 
 const geist        = Geist({ subsets: ['latin'], variable: '--font-geist' })
 const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-jetbrains-mono', weight: ['400', '500', '700'] })
@@ -29,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${geist.variable} ${jetbrainsMono.variable} h-full`}>
       <body className="min-h-full bg-[--background] text-slate-200 font-sans antialiased">
         <ServiceWorkerRegistration />
-        <Navbar />
+        <Navbar authSlot={<AuthButton />} />
         <AlphaBanner />
         <CommandPalette />
         <main className="max-w-screen-xl mx-auto px-4 py-6">
