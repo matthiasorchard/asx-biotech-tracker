@@ -8,7 +8,6 @@ export default function AuthButtonClient() {
   const [email,   setEmail]   = useState<string | null>(null)
   const [open,    setOpen]    = useState(false)
   const [loading, setLoading] = useState(false)
-  const [ready,   setReady]   = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const router  = useRouter()
 
@@ -18,19 +17,15 @@ export default function AuthButtonClient() {
   )
 
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setEmail(session?.user?.email ?? null)
-      setReady(true)
     })
-    // Listen for changes (sign in / sign out)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setEmail(session?.user?.email ?? null)
     })
     return () => subscription.unsubscribe()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Close menu on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -41,9 +36,7 @@ export default function AuthButtonClient() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  // Don't render until we know auth state (avoids flash)
-  if (!ready) return null
-
+  // Always show Sign in by default; updates to avatar once session resolves
   if (!email) {
     return (
       <Link
