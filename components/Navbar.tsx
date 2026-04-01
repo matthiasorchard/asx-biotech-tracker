@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import GlobalSearch from '@/components/GlobalSearch'
+import AuthButtonClient from '@/components/AuthButtonClient'
 
 const links = [
   { href: '/', label: 'Dashboard' },
@@ -14,7 +15,7 @@ const links = [
   { href: '/feedback', label: 'Feedback' },
 ]
 
-export default function Navbar({ authSlot }: { authSlot?: React.ReactNode }) {
+export default function Navbar() {
   const path = usePathname()
   const [open, setOpen] = useState(false)
 
@@ -53,7 +54,7 @@ export default function Navbar({ authSlot }: { authSlot?: React.ReactNode }) {
             <span>⌘K</span>
           </button>
           <span className="text-xs text-slate-600 hidden lg:block">27 ASX Biotechs</span>
-          {authSlot}
+          <AuthButtonClient />
           {/* Hamburger — mobile only */}
           <button
             className="md:hidden p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
