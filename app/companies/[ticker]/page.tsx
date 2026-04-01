@@ -203,9 +203,9 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
           const hc = hcSnapshots[0]
           const p24 = hc.post_count_24h ?? 0
           const p7  = hc.post_count_7d  ?? 0
-          const bulls = hc.bulls_pct ?? 50
-          const activityLevel = p7 >= 20 ? 'High' : p7 >= 8 ? 'Moderate' : p7 >= 3 ? 'Low' : 'Quiet'
-          const activityColor = p7 >= 20 ? 'text-green-400' : p7 >= 8 ? 'text-amber-400' : 'text-slate-500'
+          const mom = hc.momentum as string | null
+          const momLabel = mom === 'spike' ? '📈 Spike' : mom === 'high' ? '↑ High' : mom === 'quiet' ? 'Quiet' : null
+          const momColor = mom === 'spike' ? 'text-green-400' : mom === 'high' ? 'text-amber-400' : 'text-slate-600'
           return (
             <div className="mt-4 pt-4 border-t border-slate-800 flex items-center gap-6 flex-wrap">
               <a href={`https://hotcopper.com.au/asx/${ticker.toLowerCase()}/`} target="_blank" rel="noopener noreferrer"
@@ -215,18 +215,17 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
               </a>
               <div className="flex items-center gap-4 text-xs">
                 <div>
-                  <span className="text-slate-600">24h posts </span>
-                  <span className={p24 > 0 ? 'text-slate-300' : 'text-slate-600'}>{p24}</span>
+                  <span className="text-slate-600">24h </span>
+                  <span className={p24 > 0 ? 'text-slate-300' : 'text-slate-600'}>{p24} posts</span>
                 </div>
                 <div>
-                  <span className="text-slate-600">7d posts </span>
-                  <span className={p7 > 0 ? 'text-slate-300' : 'text-slate-600'}>{p7}</span>
+                  <span className="text-slate-600">7d </span>
+                  <span className={p7 > 0 ? 'text-slate-300' : 'text-slate-600'}>{p7} posts</span>
                 </div>
-                <div>
-                  <span className="text-slate-600">Activity </span>
-                  <span className={activityColor}>{activityLevel}</span>
-                </div>
-                {hc.top_post_titles && hc.top_post_titles.length > 0 && (
+                {momLabel && (
+                  <span className={`font-medium ${momColor}`} title="Compared to 4-week average activity">{momLabel}</span>
+                )}
+                {hc.top_post_titles && (hc.top_post_titles as string[]).length > 0 && (
                   <div className="hidden md:block text-slate-700 truncate max-w-xs" title={(hc.top_post_titles as string[]).join(' · ')}>
                     Latest: <span className="text-slate-500">{(hc.top_post_titles as string[])[0]?.slice(0, 50)}</span>
                   </div>

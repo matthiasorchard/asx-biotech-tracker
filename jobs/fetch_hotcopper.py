@@ -77,6 +77,42 @@ def get_companies(ticker_filter=None):
     return [row["ticker"] for row in r.json()]
 
 
+def get_recent_snapshots(ticker: str, days: int = 28) -> list[dict]:
+    """Fetch recent HC snapshots to compute rolling baseline."""
+    url = f"{SUPABASE_URL}/rest/v1/hotcopper_snapshot"
+    params = {
+        "select":        "snapshot_date,post_count_7d",
+        "ticker":        f"eq.{ticker}",
+        "order":         "snapshot_date.desc",
+        "limit":         days,
+    }
+    r = requests.get(url, headers=HEADERS_SUPA, params=params, timeout=15)
+    return r.json() if r.status_code == 200 else []
+
+
+def calc_momentum(current_7d: int, history: list[dict]) -> str:
+    """
+    Compare current week's post count to rolling 4-week average.
+    Returns: 'spike' | 'high' | 'normal' | 'quiet'
+    """
+    if not history:
+        return "normal"
+    counts = [h["post_count_7d"] for h in history if h.get("post_count_7d") is not None]
+    if not counts:
+        return "normal"
+    avg = sum(counts) / len(counts)
+    if avg < 1:
+        return "normal"
+    ratio = current_7d / avg
+    if ratio >= 2.5:
+        return "spike"
+    if ratio >= 1.5:
+        return "high"
+    if ratio <= 0.3:
+        return "quiet"
+    return "normal"
+
+
 def upsert_snapshot(row: dict) -> bool:
     url = f"{SUPABASE_URL}/rest/v1/hotcopper_snapshot?on_conflict=ticker,snapshot_date"
     r = requests.post(url, headers=HEADERS_SUPA, json=row, timeout=15)
@@ -205,7 +241,9 @@ def scrape_ticker(ticker: str) -> dict | None:
         if len(top_titles) < 5 and title:
             top_titles.append(title)
 
-    bulls_pct, bears_pct = score_sentiment(all_titles)
+    # Drop keyword sentiment (too noisy) — momentum is the real signal
+    history = get_recent_snapshots(ticker)
+    momentum = calc_momentum(count_7d, history)
 
     return {
         "ticker":          ticker,
@@ -213,9 +251,10 @@ def scrape_ticker(ticker: str) -> dict | None:
         "post_count_24h":  count_24h,
         "post_count_7d":   count_7d,
         "post_count_30d":  count_30d,
-        "bulls_pct":       bulls_pct,
-        "bears_pct":       bears_pct,
+        "bulls_pct":       None,
+        "bears_pct":       None,
         "top_post_titles": top_titles,
+        "momentum":        momentum,
     }
 
 
@@ -234,10 +273,10 @@ def main():
         snapshot = scrape_ticker(ticker)
         if snapshot:
             if upsert_snapshot(snapshot):
-                p24 = snapshot["post_count_24h"]
-                p7  = snapshot["post_count_7d"]
-                bulls = snapshot["bulls_pct"]
-                print(f"  {ticker}: {p24} posts/24h | {p7} posts/7d | {bulls}% bullish")
+                p24  = snapshot["post_count_24h"]
+                p7   = snapshot["post_count_7d"]
+                mom  = snapshot["momentum"]
+                print(f"  {ticker}: {p24} posts/24h | {p7} posts/7d | momentum={mom}")
                 ok_count += 1
             else:
                 print(f"  {ticker}: DB upsert failed")

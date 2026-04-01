@@ -135,12 +135,47 @@ def detect_and_log_changes(new_rows: list, existing: dict) -> None:
                 "days_delta":    None,
             })
             print(f"    ★ RESULTS POSTED {nct_id}: trial results now on CT.gov")
+            create_catalyst_from_results(row)
 
     if changes:
         url = f"{SUPABASE_URL}/rest/v1/trial_date_change"
         r = requests.post(url, headers=HEADERS_SUPA, json=changes, timeout=15)
         if r.status_code not in (200, 201):
             print(f"  trial_date_change insert failed {r.status_code}: {r.text[:200]}")
+
+
+def create_catalyst_from_results(trial: dict) -> None:
+    """Auto-create a completed catalyst when a trial posts results to CT.gov."""
+    nct_id = trial.get("nct_id", "")
+    ticker = trial.get("ticker", "")
+    title  = trial.get("brief_title") or trial.get("title") or nct_id
+    ct_url = trial.get("ct_url") or f"https://clinicaltrials.gov/study/{nct_id}"
+    today  = str(__import__("datetime").date.today())
+
+    payload = {
+        "ticker":           ticker,
+        "event_type":       "data_readout",
+        "title":            f"Results posted — {title[:80]}",
+        "description":      f"Trial {nct_id} has posted results to ClinicalTrials.gov.",
+        "expected_date":    today,
+        "actual_date":      today,
+        "status":           "completed",
+        "confidence":       "confirmed",
+        "impact":           "high",
+        "source_url":       ct_url,
+        "outcome":          f"Results available at {ct_url}",
+        "outcome_sentiment": "neutral",
+        "times_delayed":    0,
+    }
+
+    url = f"{SUPABASE_URL}/rest/v1/catalyst"
+    headers = {**HEADERS_SUPA, "Prefer": "return=representation"}
+    r = requests.post(url, headers=headers, json=payload, timeout=15)
+    if r.status_code in (200, 201):
+        new_id = r.json()[0].get("id") if r.json() else "?"
+        print(f"    [CATALYST CREATED] id={new_id} results posted for {nct_id}")
+    else:
+        print(f"    [CATALYST WARN] could not create results catalyst: {r.status_code}")
 
 
 def upsert_trials(rows):
