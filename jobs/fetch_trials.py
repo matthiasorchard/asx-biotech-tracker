@@ -14,13 +14,17 @@ Usage:
 
 import argparse
 import json
-import os
 import time
 import requests
 
 # ── Config ────────────────────────────────────────────────────────────────────
-SUPABASE_URL = os.environ["SUPABASE_URL"]
-SUPABASE_KEY = os.environ["SUPABASE_KEY"]
+SUPABASE_URL = "https://zdnhdbkjwlzvzdxjctai.supabase.co"
+SUPABASE_KEY = (
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+    ".eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkbmhkYmtqd2x6dnpkeGpjdGFpIiwicm9sZ"
+    "SI6ImFub24iLCJpYXQiOjE3NzQyMTAwOTQsImV4cCI6MjA4OTc4NjA5NH0"
+    "._GAcI7-mFZoVAJxQhJwNo1G6e5EXba2HVoWghBCqTuM"
+)
 CT_API = "https://clinicaltrials.gov/api/v2/studies"
 
 HEADERS_SUPA = {
@@ -60,6 +64,7 @@ SPONSOR_OVERRIDES = {
     "PNV": "PolyNovo",
     "CSL": "CSL",
     "GBT": "Anteris Technologies",
+    "AVR": "Anteris Technologies",
 }
 
 # ── Supabase helpers ───────────────────────────────────────────────────────────
@@ -72,6 +77,70 @@ def get_companies(ticker_filter=None):
     r = requests.get(url, headers=HEADERS_SUPA, params=params, timeout=15)
     r.raise_for_status()
     return r.json()
+
+
+def get_existing_trials(ticker: str) -> dict:
+    """Fetch current primary_completion_date + has_results for all trials of this ticker."""
+    url = f"{SUPABASE_URL}/rest/v1/clinical_trial"
+    params = {
+        "select": "nct_id,primary_completion_date,has_results",
+        "ticker": f"eq.{ticker}",
+    }
+    r = requests.get(url, headers=HEADERS_SUPA, params=params, timeout=15)
+    if r.status_code == 200:
+        return {row["nct_id"]: row for row in r.json()}
+    return {}
+
+
+def detect_and_log_changes(new_rows: list, existing: dict) -> None:
+    """Compare new CT.gov data to existing DB values; log changes to trial_date_change."""
+    from datetime import date as _date
+
+    changes = []
+    for row in new_rows:
+        nct_id = row.get("nct_id")
+        old = existing.get(nct_id)
+        if not old:
+            continue  # new trial, no baseline to compare
+
+        # Check primary_completion_date drift
+        old_date = old.get("primary_completion_date")
+        new_date = row.get("primary_completion_date")
+        if old_date and new_date and old_date != new_date:
+            try:
+                delta = (_date.fromisoformat(new_date) - _date.fromisoformat(old_date)).days
+                changes.append({
+                    "nct_id":        nct_id,
+                    "ticker":        row["ticker"],
+                    "field_name":    "primary_completion_date",
+                    "old_value":     old_date,
+                    "new_value":     new_date,
+                    "days_delta":    delta,
+                })
+                direction = f"+{delta}d (slipped)" if delta > 0 else f"{delta}d (pulled forward)"
+                print(f"    ⚠ DATE CHANGE {nct_id}: {old_date} → {new_date} ({direction})")
+            except Exception:
+                pass
+
+        # Check has_results flip (trial just posted results to CT.gov)
+        old_has = old.get("has_results", False)
+        new_has = row.get("has_results", False)
+        if not old_has and new_has:
+            changes.append({
+                "nct_id":        nct_id,
+                "ticker":        row["ticker"],
+                "field_name":    "has_results",
+                "old_value":     "false",
+                "new_value":     "true",
+                "days_delta":    None,
+            })
+            print(f"    ★ RESULTS POSTED {nct_id}: trial results now on CT.gov")
+
+    if changes:
+        url = f"{SUPABASE_URL}/rest/v1/trial_date_change"
+        r = requests.post(url, headers=HEADERS_SUPA, json=changes, timeout=15)
+        if r.status_code not in (200, 201):
+            print(f"  trial_date_change insert failed {r.status_code}: {r.text[:200]}")
 
 
 def upsert_trials(rows):
@@ -260,6 +329,10 @@ def main():
                 rows.append(row)
 
         if rows:
+            # Diff against existing before overwriting
+            existing = get_existing_trials(ticker)
+            detect_and_log_changes(rows, existing)
+
             ok = upsert_trials(rows)
             if ok:
                 active = sum(1 for r in rows if r.get("status") in

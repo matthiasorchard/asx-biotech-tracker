@@ -6,6 +6,7 @@ const ALL_SECTIONS = [
   { id: 'cashflow',       label: 'Cash Flow' },
   { id: 'raises',         label: 'Raises' },
   { id: 'director-tx',   label: 'Director Tx' },
+  { id: 'substantial',   label: 'Shareholders' },
   { id: 'options',        label: 'Options' },
   { id: 'short-interest', label: 'Short Interest' },
   { id: 'grants',         label: 'Grants' },

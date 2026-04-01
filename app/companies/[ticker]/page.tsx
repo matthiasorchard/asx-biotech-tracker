@@ -20,7 +20,7 @@ import PipelineVisualizer from '@/components/PipelineVisualizer'
 export const revalidate = 900
 
 async function getCompanyData(ticker: string) {
-  const [companyRes, pipelineRes, cashflowRes, catalystsRes, trialsRes, announcementsRes, raisesRes, buybacksRes, pricesRes, insiderRes, snapshotsRes, optionsRes, shortRes, grantsRes, rdtiRes, competitorRes, approvedDrugsRes] = await Promise.all([
+  const [companyRes, pipelineRes, cashflowRes, catalystsRes, trialsRes, announcementsRes, raisesRes, buybacksRes, pricesRes, insiderRes, snapshotsRes, optionsRes, shortRes, grantsRes, rdtiRes, competitorRes, approvedDrugsRes, substantialRes, hcRes, dateChangesRes] = await Promise.all([
     supabase.from('company_dashboard').select('*').eq('ticker', ticker).single(),
     supabase.from('pipeline_asset').select('*').eq('ticker', ticker).order('stage'),
     supabase.from('quarterly_4c').select('*').eq('ticker', ticker).order('quarter_end', { ascending: true }),
@@ -38,6 +38,9 @@ async function getCompanyData(ticker: string) {
     supabase.from('rd_tax_incentive').select('*').eq('ticker', ticker).order('financial_year', { ascending: false }),
     supabase.from('competitor_trial').select('*').eq('ticker', ticker).order('phase').order('primary_completion_date', { ascending: true }),
     supabase.from('approved_drug').select('*').eq('ticker', ticker).order('indication').order('drug_name'),
+    supabase.from('substantial_holder').select('*').eq('ticker', ticker).order('announce_date', { ascending: false }).limit(20),
+    supabase.from('hotcopper_snapshot').select('*').eq('ticker', ticker).order('snapshot_date', { ascending: false }).limit(7),
+    supabase.from('trial_date_change').select('*').eq('ticker', ticker).order('detected_date', { ascending: false }).limit(30),
   ])
 
   // Group enrollment snapshots by nct_id
@@ -65,12 +68,15 @@ async function getCompanyData(ticker: string) {
     rdti: rdtiRes.data ?? [],
     competitorTrials: competitorRes.data ?? [],
     approvedDrugs: approvedDrugsRes.data ?? [],
+    substantialHolders: substantialRes.data ?? [],
+    hcSnapshots: hcRes.data ?? [],
+    dateChanges: dateChangesRes.data ?? [],
   }
 }
 
 export default async function CompanyPage({ params }: { params: Promise<{ ticker: string }> }) {
   const { ticker } = await params
-  const { company, pipeline, cashflow, catalysts, trials, announcements, raises, buybacksData, prices, insiderTx, enrollmentSnapshots, directorOptions, shortHistory, grants, rdti, competitorTrials, approvedDrugs } = await getCompanyData(ticker.toUpperCase())
+  const { company, pipeline, cashflow, catalysts, trials, announcements, raises, buybacksData, prices, insiderTx, enrollmentSnapshots, directorOptions, shortHistory, grants, rdti, competitorTrials, approvedDrugs, substantialHolders, hcSnapshots, dateChanges } = await getCompanyData(ticker.toUpperCase())
   if (!company) notFound()
 
   const upcoming = catalysts.filter((c: any) => c.status === 'upcoming')
@@ -80,8 +86,9 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
     'pipeline',
     'cashflow',
     'raises',
-    ...(insiderTx.length > 0     ? ['director-tx']    : []),
-    ...(directorOptions.length > 0 ? ['options']       : []),
+    ...(insiderTx.length > 0           ? ['director-tx']    : []),
+    ...(substantialHolders.length > 0  ? ['substantial']    : []),
+    ...(directorOptions.length > 0     ? ['options']        : []),
     'short-interest',
     'grants',
     ...(rdti.length > 0                                         ? ['rdti']        : []),
@@ -190,6 +197,44 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
             </div>
           </div>
         </div>
+
+        {/* HotCopper activity */}
+        {hcSnapshots.length > 0 && (() => {
+          const hc = hcSnapshots[0]
+          const p24 = hc.post_count_24h ?? 0
+          const p7  = hc.post_count_7d  ?? 0
+          const bulls = hc.bulls_pct ?? 50
+          const activityLevel = p7 >= 20 ? 'High' : p7 >= 8 ? 'Moderate' : p7 >= 3 ? 'Low' : 'Quiet'
+          const activityColor = p7 >= 20 ? 'text-green-400' : p7 >= 8 ? 'text-amber-400' : 'text-slate-500'
+          return (
+            <div className="mt-4 pt-4 border-t border-slate-800 flex items-center gap-6 flex-wrap">
+              <a href={`https://hotcopper.com.au/asx/${ticker.toLowerCase()}/`} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-400">
+                <span className="font-medium text-slate-500">HC</span>
+                <span>HotCopper ↗</span>
+              </a>
+              <div className="flex items-center gap-4 text-xs">
+                <div>
+                  <span className="text-slate-600">24h posts </span>
+                  <span className={p24 > 0 ? 'text-slate-300' : 'text-slate-600'}>{p24}</span>
+                </div>
+                <div>
+                  <span className="text-slate-600">7d posts </span>
+                  <span className={p7 > 0 ? 'text-slate-300' : 'text-slate-600'}>{p7}</span>
+                </div>
+                <div>
+                  <span className="text-slate-600">Activity </span>
+                  <span className={activityColor}>{activityLevel}</span>
+                </div>
+                {hc.top_post_titles && hc.top_post_titles.length > 0 && (
+                  <div className="hidden md:block text-slate-700 truncate max-w-xs" title={(hc.top_post_titles as string[]).join(' · ')}>
+                    Latest: <span className="text-slate-500">{(hc.top_post_titles as string[])[0]?.slice(0, 50)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Key metrics */}
         <div className="flex items-center justify-between mt-5 pt-5 border-t border-slate-800 mb-3">
@@ -443,6 +488,58 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
         </div>
       )}
 
+      {/* Substantial Holders */}
+      {substantialHolders.length > 0 && (
+        <div id="substantial" className="bg-slate-900 border border-slate-800 rounded-lg scroll-mt-28">
+          <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between flex-wrap gap-2">
+            <h2 className="text-sm font-medium text-slate-300 min-w-0">Substantial Holders <span className="text-slate-600 font-normal">(5%+ threshold)</span></h2>
+            <span className="text-xs text-slate-600">{substantialHolders.length} notice{substantialHolders.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="divide-y divide-slate-800/60">
+            {substantialHolders.slice(0, 10).map((h: any) => (
+              <div key={h.id} className="px-4 py-2.5 text-xs">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={`shrink-0 px-1.5 py-0.5 rounded font-medium ${
+                      h.change_type === 'ceased'   ? 'bg-rose-950 text-rose-400' :
+                      h.change_type === 'increase' ? 'bg-emerald-950 text-emerald-400' :
+                      h.change_type === 'decrease' ? 'bg-amber-950 text-amber-400' :
+                      'bg-slate-800 text-slate-400'
+                    }`}>
+                      {h.change_type === 'ceased' ? 'CEASED' :
+                       h.change_type === 'increase' ? '▲' :
+                       h.change_type === 'decrease' ? '▼' : 'INITIAL'}
+                    </span>
+                    <span className="text-slate-300 truncate">{h.holder_name}</span>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0 text-right">
+                    {h.prev_percentage != null && (
+                      <span className="text-slate-600 hidden sm:inline">{Number(h.prev_percentage).toFixed(2)}%</span>
+                    )}
+                    {h.prev_percentage != null && h.percentage != null && (
+                      <span className="text-slate-600 hidden sm:inline">→</span>
+                    )}
+                    {h.percentage != null && (
+                      <span className={`font-medium ${h.change_type === 'ceased' ? 'text-slate-600 line-through' : 'text-slate-200'}`}>
+                        {Number(h.percentage).toFixed(2)}%
+                      </span>
+                    )}
+                    {h.shares && (
+                      <span className="text-slate-500 hidden md:inline">{Number(h.shares).toLocaleString()} sh</span>
+                    )}
+                    {h.source_url ? (
+                      <a href={h.source_url} target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-slate-400">{h.announce_date?.slice(0, 10)}</a>
+                    ) : (
+                      <span className="text-slate-600">{h.announce_date?.slice(0, 10)}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Director Options */}
       <div id="options" className="scroll-mt-28">
       <DirectorOptions
@@ -548,6 +645,44 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
           </div>
           <div className="px-4 py-4">
             <TrackRecord catalysts={catalysts} cashflow={cashflow} pipeline={pipeline} />
+          </div>
+        </div>
+      )}
+
+      {/* Trial timeline change alerts */}
+      {dateChanges.length > 0 && (
+        <div className="bg-amber-950/30 border border-amber-800/50 rounded-lg px-4 py-3">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-amber-400 text-sm">⚠</span>
+            <span className="text-xs font-medium text-amber-400">Trial Timeline Changes Detected</span>
+            <span className="text-xs text-amber-800">(auto-detected via CT.gov)</span>
+          </div>
+          <div className="space-y-1.5">
+            {dateChanges.slice(0, 5).map((ch: any) => {
+              const isSlip = ch.field_name === 'primary_completion_date' && (ch.days_delta ?? 0) > 0
+              const isPull = ch.field_name === 'primary_completion_date' && (ch.days_delta ?? 0) < 0
+              const isResults = ch.field_name === 'has_results'
+              const months = ch.days_delta ? Math.round(Math.abs(ch.days_delta) / 30) : null
+              return (
+                <div key={ch.id} className="flex items-start gap-3 text-xs">
+                  <span className={`shrink-0 mt-0.5 ${isSlip ? 'text-amber-400' : isResults ? 'text-emerald-400' : 'text-sky-400'}`}>
+                    {isSlip ? '↗ SLIPPED' : isPull ? '↙ PULLED FWD' : '★ RESULTS'}
+                  </span>
+                  <div className="min-w-0">
+                    <span className="text-slate-300 font-mono">{ch.nct_id}</span>
+                    {isResults ? (
+                      <span className="text-slate-400 ml-2">Results posted to ClinicalTrials.gov</span>
+                    ) : (
+                      <span className="text-slate-400 ml-2">
+                        {ch.old_value} → {ch.new_value}
+                        {months != null && months > 0 && <span className="ml-1 text-amber-600">({months}mo {isSlip ? 'delay' : 'earlier'})</span>}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-slate-700 shrink-0">{ch.detected_date}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

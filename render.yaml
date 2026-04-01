@@ -77,3 +77,17 @@ services:
         sync: false
       - key: SUPABASE_KEY
         sync: false
+
+  # ── Fetch HotCopper forum activity ───────────────────────────────────────
+  # Daily on weekdays — captures post counts and latest thread titles
+  - type: cron
+    name: fetch-hotcopper
+    runtime: python
+    schedule: "0 7 * * 1-5"   # 7am UTC = 5pm AEST (end of trading day)
+    buildCommand: pip install -r jobs/requirements.txt
+    startCommand: python jobs/fetch_hotcopper.py
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false

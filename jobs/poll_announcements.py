@@ -12,14 +12,18 @@ Usage:
 """
 
 import argparse
-import os
 import sys
 import time
 import requests
 
 # ── Config ────────────────────────────────────────────────────────────────────
-SUPABASE_URL = os.environ["SUPABASE_URL"]
-SUPABASE_KEY = os.environ["SUPABASE_KEY"]
+SUPABASE_URL = "https://zdnhdbkjwlzvzdxjctai.supabase.co"
+SUPABASE_KEY = (
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+    ".eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkbmhkYmtqd2x6dnpkeGpjdGFpIiwicm9sZ"
+    "SI6ImFub24iLCJpYXQiOjE3NzQyMTAwOTQsImV4cCI6MjA4OTc4NjA5NH0"
+    "._GAcI7-mFZoVAJxQhJwNo1G6e5EXba2HVoWghBCqTuM"
+)
 ASX_API = "https://asx.api.markitdigital.com/asx-research/1.0/companies/{ticker}/announcements"
 ASX_DOC_URL = "https://asx.api.markitdigital.com/asx-research/1.0/file/{doc_key}"
 
@@ -51,11 +55,27 @@ CLASSIFICATION_RULES: list[tuple[str, list[str]]] = [
     # director / officer changes
     ("director_appointment", ["director appointment", "appointment of", "appointed as", "new director", "new ceo", "new cfo"]),
     ("director_resignation", ["director resignation", "resignation of", "resigned", "ceasing to be a director"]),
-    # insider trading / substantial holders
+    # substantial holder notices (5%+ threshold crossings) — must come BEFORE insider_trade
+    ("substantial_holder", [
+        "substantial holder", "ceasing to be a substantial", "becoming a substantial",
+        "change in substantial", "substantial shareholding",
+    ]),
+    # insider trading — director interest notices
     ("insider_trade", [
         "change in director", "director's interest", "directors interest",
-        "substantial holder", "ceasing to be a substantial", "becoming a substantial",
         "appendix 3y", "appendix 3x",
+    ]),
+    # clinical trial milestones (first patient, enrollment, trial initiation)
+    # Must appear BEFORE trial_results to avoid "phase 2 initiated" matching trial_results first
+    ("clinical_milestone", [
+        "first patient", "first-in-human", "first in human",
+        "patient enrolled", "patient recruited", "enrollment complete",
+        "enrollment completed", "fully enrolled", "dosing initiated",
+        "trial initiated", "trial commenced", "trial opened",
+        "ind approved", "ind cleared", "ide approved",
+        "phase 1 initiated", "phase 2 initiated", "phase 3 initiated",
+        "pivotal trial initiated", "pivotal trial commenced",
+        "last patient enrolled", "last patient in",
     ]),
     # clinical trial results
     ("trial_results", [
@@ -99,8 +119,9 @@ def classify(title: str, announcement_type: str) -> tuple[str, bool]:
     needs_processing is True for quarterly_4c, capital_raise, and insider_trade.
     """
     AUTO_PROCESS = {"quarterly_4c", "half_year_report", "annual_report",
-                    "capital_raise", "insider_trade", "partnership",
-                    "trial_results", "regulatory", "buyback"}
+                    "capital_raise", "insider_trade", "substantial_holder", "partnership",
+                    "trial_results", "regulatory", "buyback",
+                    "clinical_milestone", "quarterly_activities"}
     t = title.lower()
     for category, keywords in CLASSIFICATION_RULES:
         if any(kw in t for kw in keywords):
