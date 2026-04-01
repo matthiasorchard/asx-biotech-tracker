@@ -163,9 +163,17 @@ export default function CompaniesTable({
                       const barColor = months < 6 ? 'bg-rose-500' : months < 12 ? 'bg-amber-500' : 'bg-emerald-500'
                       const barPct = Math.min(100, (months / 18) * 100)
                       const isRaiseRisk = showBar && months < 6
+                      const adjMonths = Number(c.adj_runway_months)
+                      const rdtiPending = Number(c.rdti_pending_m ?? 0)
+                      const showAdj = !c.is_cf_positive && rdtiPending > 0 && adjMonths > months && adjMonths < 999
                       return (
                         <div className="flex flex-col items-end gap-1.5">
                           <span className={r.className}>{r.text}</span>
+                          {showAdj && (
+                            <span className="text-xs text-green-600" title={`+A$${rdtiPending.toFixed(1)}M RDTI refund expected`}>
+                              +{Math.round(adjMonths - months)}mo RDTI
+                            </span>
+                          )}
                           {showBar && (
                             <div className="w-14 h-1 bg-slate-800 rounded-full overflow-hidden">
                               <div className={`h-full rounded-full ${barColor}`} style={{ width: `${barPct}%` }} />
