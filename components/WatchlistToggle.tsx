@@ -1,29 +1,49 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import Link from 'next/link'
 
 interface Props {
   ticker: string
-  initialWatched: boolean
-  userId: string | null
 }
 
-export default function WatchlistToggle({ ticker, initialWatched, userId }: Props) {
-  const [watched, setWatched] = useState(initialWatched)
+export default function WatchlistToggle({ ticker }: Props) {
+  const [userId,  setUserId]  = useState<string | null>(null)
+  const [watched, setWatched] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [ready,   setReady]   = useState(false)
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const uid = session?.user?.id ?? null
+      setUserId(uid)
+      if (uid) {
+        const { data } = await supabase
+          .from('watchlist')
+          .select('ticker')
+          .eq('user_id', uid)
+          .eq('ticker', ticker)
+          .maybeSingle()
+        setWatched(!!data)
+      }
+      setReady(true)
+    })
+  }, [ticker]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Don't render until auth state is known
+  if (!ready) return null
+
   if (!userId) {
     return (
       <Link
         href="/auth/login"
         className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors"
-        title="Sign in to add to watchlist"
+        title="Sign in to watch"
       >
         <span className="text-base">☆</span>
         <span className="hidden sm:inline">Watch</span>

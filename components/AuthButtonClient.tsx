@@ -1,19 +1,34 @@
 'use client'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
-export default function AuthButtonClient({ email }: { email: string | null }) {
-  const [open, setOpen]       = useState(false)
+export default function AuthButtonClient() {
+  const [email,   setEmail]   = useState<string | null>(null)
+  const [open,    setOpen]    = useState(false)
   const [loading, setLoading] = useState(false)
-  const menuRef               = useRef<HTMLDivElement>(null)
-  const router                = useRouter()
+  const [ready,   setReady]   = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const router  = useRouter()
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
+
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setEmail(session?.user?.email ?? null)
+      setReady(true)
+    })
+    // Listen for changes (sign in / sign out)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setEmail(session?.user?.email ?? null)
+    })
+    return () => subscription.unsubscribe()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close menu on outside click
   useEffect(() => {
@@ -26,12 +41,8 @@ export default function AuthButtonClient({ email }: { email: string | null }) {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  async function signOut() {
-    setLoading(true)
-    await supabase.auth.signOut()
-    router.push('/')
-    router.refresh()
-  }
+  // Don't render until we know auth state (avoids flash)
+  if (!ready) return null
 
   if (!email) {
     return (
@@ -45,8 +56,15 @@ export default function AuthButtonClient({ email }: { email: string | null }) {
     )
   }
 
-  // Signed-in state — avatar / initials button with dropdown
   const initials = email.slice(0, 2).toUpperCase()
+
+  async function signOut() {
+    setLoading(true)
+    setOpen(false)
+    await supabase.auth.signOut()
+    router.push('/')
+    router.refresh()
+  }
 
   return (
     <div className="relative" ref={menuRef}>

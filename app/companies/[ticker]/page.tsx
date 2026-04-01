@@ -1,5 +1,4 @@
 import { supabase } from '@/lib/supabase'
-import { getUser, createSupabaseServer } from '@/lib/supabase-server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { formatDate, formatMarketCap, formatCash, formatRunway } from '@/lib/utils'
@@ -80,24 +79,8 @@ async function getCompanyData(ticker: string) {
 
 export default async function CompanyPage({ params }: { params: Promise<{ ticker: string }> }) {
   const { ticker } = await params
-  const [{ company, pipeline, cashflow, catalysts, trials, announcements, raises, buybacksData, prices, insiderTx, enrollmentSnapshots, directorOptions, shortHistory, grants, rdti, competitorTrials, approvedDrugs, substantialHolders, hcSnapshots, dateChanges, publications }, user] = await Promise.all([
-    getCompanyData(ticker.toUpperCase()),
-    getUser(),
-  ])
+  const { company, pipeline, cashflow, catalysts, trials, announcements, raises, buybacksData, prices, insiderTx, enrollmentSnapshots, directorOptions, shortHistory, grants, rdti, competitorTrials, approvedDrugs, substantialHolders, hcSnapshots, dateChanges, publications } = await getCompanyData(ticker.toUpperCase())
   if (!company) notFound()
-
-  // Check if the authenticated user has this ticker in their watchlist
-  let isWatched = false
-  if (user) {
-    const supabaseServer = await createSupabaseServer()
-    const { data } = await supabaseServer
-      .from('watchlist')
-      .select('ticker')
-      .eq('user_id', user.id)
-      .eq('ticker', ticker.toUpperCase())
-      .maybeSingle()
-    isWatched = !!data
-  }
 
   const upcoming = catalysts.filter((c: any) => c.status === 'upcoming')
   const completed = catalysts.filter((c: any) => c.status === 'completed')
@@ -203,7 +186,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
           </div>
           <div className="flex flex-col items-end gap-3">
             <div className="flex items-center gap-3">
-              <WatchlistToggle ticker={ticker.toUpperCase()} initialWatched={isWatched} userId={user?.id ?? null} />
+              <WatchlistToggle ticker={ticker.toUpperCase()} />
               {company.website && (
                 <a href={company.website} target="_blank" rel="noopener noreferrer"
                   className="text-xs text-green-500 hover:text-green-400 border border-slate-700 rounded px-3 py-1.5">
